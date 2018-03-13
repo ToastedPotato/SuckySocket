@@ -107,7 +107,7 @@ st_process_requests (server_thread * st, int socket_fd)
 }
 
 
-void
+/*void
 st_signal ()
 {
   // TODO: Remplacer le contenu de cette fonction
@@ -115,7 +115,7 @@ st_signal ()
 
 
   // TODO end
-}
+}*/
 
 int st_wait() {
   struct sockaddr_in thread_addr;

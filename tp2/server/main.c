@@ -35,8 +35,8 @@ main (int argc, char *argv[argc + 1])
   for (unsigned int i = 0; i < num_server_threads; i++)
     pthread_join (st[i].pt_tid, NULL);
 
-  // Signale aux clients de se terminer.
-  st_signal ();
+  // Signale aux clients de se terminer. Inutile, clients se terminent eux-même
+  //st_signal ();
 
   // Affiche le journal.
   st_print_results (stdout, true);
