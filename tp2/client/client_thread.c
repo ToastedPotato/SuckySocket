@@ -51,10 +51,11 @@ send_request (int client_id, int request_id, int socket_fd)
 {
   // TP2 TODO
 
-
+  //FILE *socket_w = fdopen(socket_fd, "w");
   fprintf (stdout, "Client %d is sending its %d request\n", client_id,
       request_id);
-
+  //fprintf (socket_w, "REQ %d 1 1 1 1 1\n", client_id);
+  //fclose (socket_w);
   // TP2 TODO:END
 
 }
@@ -68,6 +69,35 @@ ct_code (void *param)
 
   // TP2 TODO
   // Connection au server.
+  // Create socket
+  socket_fd = socket (AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
+  if (socket_fd < 0) {
+  	perror ("ERROR opening socket");
+  	exit(1);
+  }
+
+  // Connect
+  struct sockaddr_in serv_addr;
+  memset (&serv_addr, 0, sizeof (serv_addr));
+  serv_addr.sin_family = AF_INET;
+  serv_addr.sin_addr.s_addr = INADDR_ANY;
+  serv_addr.sin_port = htons (port_number);
+  if (connect(socket_fd, (struct sockaddr *) &serv_addr, sizeof (serv_addr))  < 0) {
+  // wrong way to check for errors with nonblocking sockets...
+  //	perror ("ERROR connecting");
+  //	exit(1);
+  }
+
+  // Write to socket
+  FILE *socket_w = fdopen (socket_fd, "w");
+
+  //First thread initialize server
+  fprintf (socket_w, "BEG %d\n", num_resources);
+  fprintf (socket_w, "PRO 1 1 1 1 1\n");
+
+  fprintf (socket_w, "INI %d 0 0 0 0 0\n", ct->id); 
+  fclose (socket_w); //probably shouldn't be closed here...
+
   // Vous devez ici faire l'initialisation des petits clients (`INI`).
   // TP2 TODO:END
 
