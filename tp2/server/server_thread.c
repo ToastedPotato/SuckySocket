@@ -25,7 +25,7 @@ enum {
   server_backlog_size = 5
 };
 
-unsigned int server_socket_fd;
+int server_socket_fd;
 
 // Nombre de client enregistré.
 int nb_registered_clients;
@@ -205,7 +205,7 @@ st_print_results (FILE * fd, bool verbose)
   {
     fprintf (fd, "\n---- Résultat du serveur ----\n");
     fprintf (fd, "Requêtes acceptées: %d\n", count_accepted);
-    fprintf (fd, "Requêtes : %d\n", count_wait);
+    fprintf (fd, "Requêtes en attente: %d\n", count_wait);
     fprintf (fd, "Requêtes invalides: %d\n", count_invalid);
     fprintf (fd, "Clients : %d\n", count_dispatched);
     fprintf (fd, "Requêtes traitées: %d\n", request_processed);

@@ -23,7 +23,6 @@ int *provisioned_resources = NULL;
 // Variable d'initialisation des threads clients.
 unsigned int count = 0;
 
-
 // Variable du journal.
 // Nombre de requête acceptée (ACK reçus en réponse à REQ)
 unsigned int count_accepted = 0;
@@ -34,7 +33,7 @@ unsigned int count_on_wait = 0;
 // Nombre de requête refusée (REFUSE reçus en réponse à REQ)
 unsigned int count_invalid = 0;
 
-// Nombre de client qui se sont terminés correctement (ACC reçu en réponse à END)
+// Nombre de client qui se sont terminés correctement (ACK reçu en réponse à END)
 unsigned int count_dispatched = 0;
 
 // Nombre total de requêtes envoyées.
