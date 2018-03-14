@@ -169,10 +169,10 @@ void
 st_open_socket (int port_number)
 {
   server_socket_fd = socket (AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
-  if (server_socket_fd < 0)
+  if (server_socket_fd < 0) {
     perror ("ERROR opening socket");
     exit(1);
-
+  }
   if (setsockopt(server_socket_fd, SOL_SOCKET, SO_REUSEADDR, &(int){ 1 }, sizeof(int)) < 0) {
     perror("setsockopt()");
     exit(1);
