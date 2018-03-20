@@ -51,7 +51,20 @@ unsigned int request_processed = 0;
 unsigned int clients_ended = 0;
 
 // TODO: Ajouter vos structures de données partagées, ici.
+//int *available;
+
+// Number of resources
+int nb_resources;
+
+// Maximum resources that can be requested by each process
+int *max;
+
+// Resources currently being holded by each process
+int *allocated;
+
+// Resources available
 int *available;
+
 
 static void sigint_handler(int signum) {
   // Code terminaison.
@@ -72,6 +85,52 @@ st_init ()
   // Attend la connection d'un client et initialise les structures pour
   // l'algorithme du banquier.
 
+  // Attend une connection
+  struct sockaddr_in addr;
+  socklen_t socket_len = sizeof(addr);
+  int socket_fd = -1;
+  while(socket_fd < 0) {
+   socket_fd = accept(server_socket_fd, (struct sockaddr *)&addr, &socket_len);
+  }
+  FILE *socket_r = fdopen (socket_fd, "r");
+  char cmd[4] = {NUL, NUL, NUL, NUL};
+  fread (cmd, 3, 1, socket_r);
+  char *args = NULL;
+  size_t args_len = 0;
+  ssize_t cnt = getline (&args, &args_len, socket_r);
+
+  if(strcmp(cmd, "BEG") == 0) {
+    fprintf(stdout, "Init received cmd %s%s", cmd, args);
+    // Initialise nombre de resources
+    nb_resources = atoi(args);
+  }
+
+  fread (cmd, 3, 1, socket_r);
+  cnt = getline (&args, &args_len, socket_r);
+
+  if(strcmp(cmd, "PRO") == 0) {
+    fprintf(stdout, "Init received cmd %s%s", cmd, args);
+
+    // Initialise quantite initiale de ressources
+    available = malloc(nb_resources * sizeof(int));
+
+    available[0] = atoi(strtok(args, " "));
+    for(int i=1 ; i < nb_resources; i++) {
+      available[i] = atoi(strtok(NULL, " "));
+    }
+  }
+
+  // TODO: Initialise max
+  allocated = malloc(nb_resources * sizeof(int));
+
+  // TODO: Initialise allocated
+  max = malloc(nb_resources * sizeof(int));
+
+  free(args);
+  fclose(socket_r);
+  close(socket_fd);
+
+  fprintf(stdout, "available : %d", available[0]);
   // END TODO
 }
 
@@ -97,6 +156,31 @@ st_process_requests (server_thread * st, int socket_fd)
 
     printf ("Thread %d received the command: %s%s", st->id, cmd, args);
 
+    int ctId = atoi(strtok(args, " "));
+    // Case 1 : ini
+    if(strcmp(cmd, "INI") == 0) {
+      nb_registered_clients++;
+      // Initialise ressources max pour client
+      // TODO: increment max/allocated dynamically
+      for(int i=0; i < nb_resources ; i++) {
+        max[i] = atoi(strtok(NULL, " "));
+      }
+      printf("Thread %d initialized client %d with %d", st->id, ctId, max[1]);
+    }
+
+    // Case 2 : req
+    if(strcmp(cmd, "REQ") == 0) {
+      printf("Thread %d received request from client %d", st->id, ctId);
+      // TODO: process request
+      // TODO: reply
+    }
+
+    // Case 3 : clo
+    if(strcmp(cmd, "CLO") == 0) {
+      printf("Thread %d closed client %d", st->id, ctId);
+      // TODO : deallocate max and allocated
+      nb_registered_clients--;
+    }
     fprintf (socket_w, "ERR Unknown command\n");
     free (args);
   }
