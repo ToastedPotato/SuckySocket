@@ -39,7 +39,6 @@ unsigned int count_dispatched = 0;
 // Nombre total de requêtes envoyées.
 unsigned int request_sent = 0;
 
-
 // Vous devez modifier cette fonction pour faire l'envoie des requêtes
 // Les ressources demandées par la requête doivent être choisies aléatoirement
 // (sans dépasser le maximum pour le client). Elles peuvent être positives
@@ -50,12 +49,12 @@ void
 send_request (int client_id, int request_id, int socket_fd)
 {
   // TP2 TODO
-
-  //FILE *socket_w = fdopen(socket_fd, "w");
+  char str[200];
+  sprintf(str, "REQ %d 1 1 1 1 1\n", client_id);
+  write(socket_fd, &str, sizeof(str));
   fprintf (stdout, "Client %d is sending its %d request\n", client_id,
       request_id);
-  //fprintf (socket_w, "REQ %d 1 1 1 1 1\n", client_id);
-  //fclose (socket_w);
+  free(str);
   // TP2 TODO:END
 
 }
@@ -88,15 +87,42 @@ ct_code (void *param)
   //	exit(1);
   }
 
-  // Write to socket
-  FILE *socket_w = fdopen (socket_fd, "w");
+  // Initialize server
+  // TODO: send only once
+  char beg[80];
+  sprintf(beg, "BEG %d\n", num_resources);
+  write(socket_fd, &beg, strlen(beg));
+
+  char pro[80];
+  sprintf(pro,"PRO");
+  for(int j=0; j < num_resources; j++) {
+    sprintf(pro, "%s %d", pro, provisioned_resources[j]);
+  }
+  sprintf(pro, "%s\n", pro);
+  write(socket_fd, &pro, strlen(pro));
+
+  // Initialize client thread
+ // TODO : generate random value for initialization
+  char init[80];
+  sprintf(init, "INIT %d", ct->id);
+  for(int i=0; i < num_resources; i++) {
+    sprintf(init, "%s %d", init, 1);
+  }
+  sprintf(init, "%s\n", init);
+  write(socket_fd, &init, strlen(init));
+
+// Write to socket
+ // FILE *socket_w = fdopen (socket_fd, "w");
 
   //First thread initialize server
-  fprintf (socket_w, "BEG %d\n", num_resources);
-  fprintf (socket_w, "PRO 1 1 1 1 1\n");
+ // fprintf (socket_w, "BEG %d\n", num_resources);
+ // fprintf (socket_w, "PRO 1 1 1 1 1\n");
 
-  fprintf (socket_w, "INI %d 0 0 0 0 0\n", ct->id); 
-  fclose (socket_w); //probably shouldn't be closed here...
+//  fclose (socket_w);
+
+ // socket_w = fdopen (socket_fd, "w");
+ // fprintf (socket_w, "INI %d 0 0 0 0 0\n", ct->id);
+ // fclose (socket_w); //probably shouldn't be closed here...
 
   // Vous devez ici faire l'initialisation des petits clients (`INI`).
   // TP2 TODO:END
@@ -111,6 +137,12 @@ ct_code (void *param)
 
     send_request (ct->id, request_id, socket_fd);
 
+    // Last request
+    if(request_id == num_request_per_client -1) {
+      // TODO: Free resources
+      // TODO: Send CLO to server
+      close(socket_fd);
+    }
     // TP2 TODO:END
 
     /* Attendre un petit peu (0s-0.1s) pour simuler le calcul.  */
