@@ -167,32 +167,70 @@ st_process_requests (server_thread * st, int socket_fd)
       nb_registered_clients++;
       // Initialise ressources max pour client
       // TODO: increment max/allocated dynamically
+      // TODO: test validity : max <= provisionned resources?? (can that be done?)
       for(int i=0; i < nb_resources ; i++) {
         max[i] = atoi(strtok(NULL, " "));
       }
       printf("Thread %d initialized client %d with %d\n", st->id, ctId, max[1]);
-    }
-
-    // Case 2 : req
-    if(strcmp(cmd, "REQ") == 0) {
+      // reply
+    } else if(strcmp(cmd, "REQ") == 0) {
+      // Case 2 : req
       printf("Thread %d received request from client %d\n", st->id, ctId);
       // TODO: process request
-      // TODO: reply
-    }
-
-    // Case 3 : clo
-    if(strcmp(cmd, "CLO") == 0) {
+      // Parse request args
+      int req[nb_resources];
+      for(int i=0; i < nb_resources; i++) {
+          req[i] = atoi(strtok(NULL, " "));
+      }
+      // Test request validity
+      // req <= max - allocated for client
+      // req + allocated >= 0 for client
+      // reply with error if invalid 
+      // Test if request can be granted
+      // newstate = available - req >= 0 
+      // if(cannot be granted)
+      // reply with wait
+      // Test new state
+      // if(isSafe)
+      // grant request
+      // reply with ack
+      // else reply with wait
+    } else if(strcmp(cmd, "CLO") == 0) {
+      // Case 3 : clo
       printf("Thread %d closed client %d", st->id, ctId);
       // TODO : deallocate max and allocated
       nb_registered_clients--;
+      // reply ack
+    } else if(strcmp(cmd, "END") == 0) {
+      // Case 4 : end
+      //TODO : Close server / free structures
+      // reply ACK
+    } else {
+      fprintf (socket_w, "ERR Unknown command\n");
     }
-    fprintf (socket_w, "ERR Unknown command\n");
     free (args);
   }
 
   fclose (socket_r);
   fclose (socket_w);
   // TODO end
+}
+// Test if a state is safe
+int isSafe (int state[]) {
+    // 1. Let work and finish vectors of m and n length
+    // initialize work = available
+    // finish = false
+
+    // 2. find i such that finish[i] = false & need[i][] <= work
+    // if !E, go to 4.
+
+    // 3. if E, work = work + allocated[i][]
+    // finish[i] = true
+    // go to 2.
+
+    // 4. if finish=true for all i
+    // isSafe = true
+    return 0;
 }
 
 
