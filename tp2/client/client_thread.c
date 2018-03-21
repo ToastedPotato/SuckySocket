@@ -27,17 +27,32 @@ unsigned int count = 0;
 // Nombre de requête acceptée (ACK reçus en réponse à REQ)
 unsigned int count_accepted = 0;
 
+pthread_mutex_t ack_mutex = PTHREAD_MUTEX_INITIALIZER;
+
 // Nombre de requête en attente (WAIT reçus en réponse à REQ)
 unsigned int count_on_wait = 0;
+
+pthread_mutex_t req_wait_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 // Nombre de requête refusée (REFUSE reçus en réponse à REQ)
 unsigned int count_invalid = 0;
 
+pthread_mutex_t err_mutex = PTHREAD_MUTEX_INITIALIZER;
+
 // Nombre de client qui se sont terminés correctement (ACK reçu en réponse à END)
 unsigned int count_dispatched = 0;
 
+pthread_mutex_t dispatch_mutex = PTHREAD_MUTEX_INITIALIZER;
+
 // Nombre total de requêtes envoyées.
 unsigned int request_sent = 0;
+
+pthread_mutex_t sent_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+//Variable d'initialization du serveur
+unsigned int server_ready = 0;
+
+pthread_mutex_t server_setup_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 // Vous devez modifier cette fonction pour faire l'envoie des requêtes
 // Les ressources demandées par la requête doivent être choisies aléatoirement
@@ -46,16 +61,62 @@ unsigned int request_sent = 0;
 // Assurez-vous que la dernière requête d'un client libère toute les ressources
 // qu'il a jusqu'alors accumulées.
 void
-send_request (int client_id, int request_id, int socket_fd)
+send_request (int client_id, int request_id, int resend, int req_values[], 
+    int max[], int held[], int socket_fd)
 {
-  // TP2 TODO
-  char str[200];
-  sprintf(str, "REQ %d 1 1 1 1 1\n", client_id);
-  write(socket_fd, &str, sizeof(str));
-  fprintf (stdout, "Client %d is sending its %d request\n", client_id,
-      request_id);
-  free(str);
-  // TP2 TODO:END
+    //j'ai dû modifier la signature de la méthode d'envoi de requête pour 
+    //satisfiare les contraintes ci-haut
+
+    // TP2 TODO
+    char req[200];
+    
+    if (resend){
+        
+        //renvoi de la requête précédente suite à un WAIT
+        sprintf(req, "REQ %d", client_id);
+        for(int j=0; j < num_resources; j++) {
+            
+            sprintf(req, "%s %d", req, req_values[j]);
+        }
+        sprintf(req, "%s\n", req);
+    }else{
+        
+        if (request_id < num_request_per_client - 1){
+            
+            //requêtes normales 
+            sprintf(req, "REQ %d", client_id);
+            for(int j=0; j < num_resources; j++) {
+                
+                int value = (rand() % ((max[j]+1) * 2)) - max[j];
+                
+                sprintf(req, "%s %d", req, value);
+                req_values[j] = value;
+            }
+            sprintf(req, "%s\n", req);
+            
+        }else {
+            
+            //requête finale, on libère toutes les ressources
+            sprintf(req, "REQ %d", client_id);
+            for(int j=0; j < num_resources; j++) {
+                
+                int value = (held[j] * -1);
+                sprintf(req, "%s %d", req, value);
+                req_values[j] = value;
+            }
+            sprintf(req, "%s\n", req);
+        }
+    }
+    
+    write(socket_fd, &req, strlen(req));
+        fprintf (stdout, "Client %d is sending request #%d\n", client_id,
+            (request_id + 1));
+    
+    //mise à jour des statistiques
+    pthread_mutex_lock(&sent_mutex);
+    request_sent++;
+    pthread_mutex_unlock(&sent_mutex);
+    // TP2 TODO:END
 
 }
 
@@ -63,97 +124,156 @@ send_request (int client_id, int request_id, int socket_fd)
 void *
 ct_code (void *param)
 {
-  int socket_fd = -1;
-  client_thread *ct = (client_thread *) param;
-
-  // TP2 TODO
-  // Connection au server.
-  // Create socket
-  socket_fd = socket (AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
-  if (socket_fd < 0) {
-  	perror ("ERROR opening socket");
-  	exit(1);
-  }
-
-  // Connect
-  struct sockaddr_in serv_addr;
-  memset (&serv_addr, 0, sizeof (serv_addr));
-  serv_addr.sin_family = AF_INET;
-  serv_addr.sin_addr.s_addr = INADDR_ANY;
-  serv_addr.sin_port = htons (port_number);
-  if (connect(socket_fd, (struct sockaddr *) &serv_addr, sizeof (serv_addr))  < 0) {
-  // wrong way to check for errors with nonblocking sockets...
-  //	perror ("ERROR connecting");
-  //	exit(1);
-  }
-
-  // Initialize server
-  // TODO: send only once
-  char beg[80];
-  sprintf(beg, "BEG %d\n", num_resources);
-  write(socket_fd, &beg, strlen(beg));
-
-  char pro[80];
-  sprintf(pro,"PRO");
-  for(int j=0; j < num_resources; j++) {
-    sprintf(pro, "%s %d", pro, provisioned_resources[j]);
-  }
-  sprintf(pro, "%s\n", pro);
-  write(socket_fd, &pro, strlen(pro));
-
-  // Initialize client thread
- // TODO : generate random value for initialization
-  char init[80];
-  sprintf(init, "INIT %d", ct->id);
-  for(int i=0; i < num_resources; i++) {
-    sprintf(init, "%s %d", init, 1);
-  }
-  sprintf(init, "%s\n", init);
-  write(socket_fd, &init, strlen(init));
-
-// Write to socket
- // FILE *socket_w = fdopen (socket_fd, "w");
-
-  //First thread initialize server
- // fprintf (socket_w, "BEG %d\n", num_resources);
- // fprintf (socket_w, "PRO 1 1 1 1 1\n");
-
-//  fclose (socket_w);
-
- // socket_w = fdopen (socket_fd, "w");
- // fprintf (socket_w, "INI %d 0 0 0 0 0\n", ct->id);
- // fclose (socket_w); //probably shouldn't be closed here...
-
-  // Vous devez ici faire l'initialisation des petits clients (`INI`).
-  // TP2 TODO:END
-
-  for (unsigned int request_id = 0; request_id < num_request_per_client;
-      request_id++)
-  {
+    int socket_fd = -1;
+    client_thread *ct = (client_thread *) param;
 
     // TP2 TODO
-    // Vous devez ici coder, conjointement avec le corps de send request,
-    // le protocole d'envoi de requête.
-
-    send_request (ct->id, request_id, socket_fd);
-
-    // Last request
-    if(request_id == num_request_per_client -1) {
-      // TODO: Free resources
-      // TODO: Send CLO to server
-      close(socket_fd);
+    // Connection au server.
+    // Create socket
+    socket_fd = socket (AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
+    if (socket_fd < 0) {
+    perror ("ERROR opening socket");
+    exit(1);
     }
+
+    // Connect
+    struct sockaddr_in serv_addr;
+    memset (&serv_addr, 0, sizeof (serv_addr));
+    serv_addr.sin_family = AF_INET;
+    serv_addr.sin_addr.s_addr = INADDR_ANY;
+    serv_addr.sin_port = htons (port_number);
+    if (connect(socket_fd, (struct sockaddr *) &serv_addr, 
+    sizeof (serv_addr))  < 0) {
+    // wrong way to check for errors with nonblocking sockets...
+    //	perror ("ERROR connecting");
+    //	exit(1);
+    }
+
+    // Initialize server
+    pthread_mutex_lock(&server_setup_mutex);
+    if(!server_ready){
+        char beg[80];
+        sprintf(beg, "BEG %d\n", num_resources);
+        write(socket_fd, &beg, strlen(beg));
+
+        char pro[80];
+        sprintf(pro,"PRO");
+        for(int j=0; j < num_resources; j++) {
+            sprintf(pro, "%s %d", pro, provisioned_resources[j]);
+        }
+        sprintf(pro, "%s\n", pro);
+        write(socket_fd, &pro, strlen(pro));
+
+        server_ready = 1;
+    }
+    pthread_mutex_unlock(&server_setup_mutex);
+
+    // Initialize client thread
+    char init[80];
+    int max_resources[num_resources];
+    sprintf(init, "INI %d", ct->id);
+
+    srand((unsigned int)time(NULL) + ct->pt_tid);  
+
+    for(int i=0; i < num_resources; i++) {
+        int value = rand() % provisioned_resources[i];
+        max_resources[i] = value;
+        sprintf(init, "%s %d", init, value);
+    }
+    sprintf(init, "%s\n", init);
+    write(socket_fd, &init, strlen(init));
+
+    // Vous devez ici faire l'initialisation des petits clients (`INI`).
     // TP2 TODO:END
+    
+    int held[num_resources];
+    for (int i = 0; i < num_resources; i++){
+        held[i] = 0;    
+    }
+    
+    for (unsigned int request_id = 0; request_id < num_request_per_client;
+      request_id++)
+    {
 
-    /* Attendre un petit peu (0s-0.1s) pour simuler le calcul.  */
-    usleep (random () % (100 * 1000));
-    /* struct timespec delay;
-     * delay.tv_nsec = random () % (100 * 1000000);
-     * delay.tv_sec = 0;
-     * nanosleep (&delay, NULL); */
-  }
+        // TP2 TODO
+        // Vous devez ici coder, conjointement avec le corps de send request,
+        // le protocole d'envoi de requête.
+               
+        int requested[num_resources];
+        
+        int request_outcome = -1;
+        
+        int wait_time = 0;
 
-  return NULL;
+        while (request_outcome != 1) {
+                  
+            
+            if (request_outcome == 0){
+                
+                //renvoi de la même requête sous réception d'un "WAIT"                
+                sleep(wait_time);
+                
+                send_request (ct->id, request_id, 1, requested, max_resources, 
+                    held, socket_fd);
+            }else {
+            
+                //nouvelle requête
+                send_request (ct->id, request_id, 0, requested, max_resources, 
+                    held, socket_fd);
+            }
+            
+            //pour l'instant, j'assumes que les réponses du serveur < 40 char
+            char server_response[40];
+            int result = 0;
+            //si aucune réponse du serveur, on attends et on revérifie
+            while (result == 0){
+                sleep(5);
+                result = read(socket_fd, server_response, 39);
+            }
+            
+            if(strcmp(server_response, "ACK") == 0){
+                
+                request_outcome = 1;
+                
+                pthread_mutex_lock(&ack_mutex);
+                count_accepted++;
+                pthread_mutex_unlock(&ack_mutex);
+            }else if(strstr(server_response, "WAIT ")){
+                
+                //la durée de l'attente est le nombre après "WAIT "
+                strtok(server_response, " ");
+                wait_time = atoi (strtok(NULL, ""));
+                request_outcome = 0;
+                
+                pthread_mutex_lock(&req_wait_mutex);
+                count_on_wait++;
+                pthread_mutex_unlock(&req_wait_mutex);
+            }else{
+                
+                //on assume la réception d'un "ERR *msg*" autrement
+                pthread_mutex_lock(&err_mutex);
+                count_invalid++;
+                pthread_mutex_unlock(&err_mutex);
+            }
+        }
+        
+        //mise à jour des ressources si succès de la requête
+        for (int i = 0; i < num_resources; i++){
+            
+            held[i] = held[i] + requested[i];
+        }
+        // TP2 TODO:END
+
+        /* Attendre un petit peu (0s-0.1s) pour simuler le calcul.  */
+        usleep (random () % (100 * 1000));
+        /* struct timespec delay;
+         * delay.tv_nsec = random () % (100 * 1000000);
+         * delay.tv_sec = 0;
+         * nanosleep (&delay, NULL); */
+    }
+
+    // TODO: Send CLO to server
+    return NULL;
 }
 
 

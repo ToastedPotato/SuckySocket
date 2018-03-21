@@ -51,7 +51,6 @@ unsigned int request_processed = 0;
 unsigned int clients_ended = 0;
 
 // TODO: Ajouter vos structures de données partagées, ici.
-//int *available;
 
 // Number of resources
 int nb_resources;
@@ -129,8 +128,14 @@ st_init ()
   free(args);
   fclose(socket_r);
   close(socket_fd);
-
-  fprintf(stdout, "available : %d", available[0]);
+  
+  char strA[100];
+  sprintf(strA,"Available resources:");
+  for(int j=0; j < nb_resources; j++) {
+    sprintf(strA, "%s %d", strA, available[j]);
+  }
+  sprintf(strA, "%s\n", strA);
+  fprintf(stdout, "%s\n", strA);
   // END TODO
 }
 
@@ -154,7 +159,7 @@ st_process_requests (server_thread * st, int socket_fd)
       break;
     }
 
-    printf ("Thread %d received the command: %s%s", st->id, cmd, args);
+    printf ("Thread %d received the command: %s%s\n", st->id, cmd, args);
 
     int ctId = atoi(strtok(args, " "));
     // Case 1 : ini
@@ -165,12 +170,12 @@ st_process_requests (server_thread * st, int socket_fd)
       for(int i=0; i < nb_resources ; i++) {
         max[i] = atoi(strtok(NULL, " "));
       }
-      printf("Thread %d initialized client %d with %d", st->id, ctId, max[1]);
+      printf("Thread %d initialized client %d with %d\n", st->id, ctId, max[1]);
     }
 
     // Case 2 : req
     if(strcmp(cmd, "REQ") == 0) {
-      printf("Thread %d received request from client %d", st->id, ctId);
+      printf("Thread %d received request from client %d\n", st->id, ctId);
       // TODO: process request
       // TODO: reply
     }
