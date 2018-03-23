@@ -131,13 +131,9 @@ st_init ()
     fprintf(socket_w, "ERR Please provide resources\n");
   }
 
-  // Initialise max
+  // Initialise structures
   allocated = new_array(2);
-
-  // Initialise allocated
   max = new_array(2);
-
-  // Initialise client id array
   client_ids = new_array(2);
 
   free(args);
@@ -145,6 +141,7 @@ st_init ()
   fclose(socket_w);
   close(socket_fd);
 
+  //TODO: cleanup
   char strA[100];
   sprintf(strA,"Available resources:");
   for(int j=0; j < nb_resources; j++) {
@@ -197,21 +194,22 @@ st_process_requests (server_thread * st, int socket_fd)
       printf("Thread %d initialized client %d\n", st->id, ct_id);
       fprintf (socket_w, "ACK\n");
     } else if(strcmp(cmd, "REQ") == 0) {
+
       // Case 2 : req
       int idx = getClientIdx(ct_id);
-      //TODO : invalid id error
       printf("Thread %d received request from client %d at index %d\n", st->id, ct_id, idx);
+
       // Parse request args
       int req[nb_resources];
       for(int i=0; i < nb_resources; i++) {
           req[i] = atoi(strtok(NULL, " "));
       }
-      // Test request validity
-      // req <= max - allocated for client
-      // req + allocated >= 0 for client
-      // reply with error if invalid
 
-      if(isSafe(idx, req) == 1) {
+      if(idx < 0 || isValid(idx, req) == 0) { // Test request validity
+        printf("Request invalid\n");
+        fprintf (socket_w, "ERR invalid resources or id\n");
+        count_invalid++;
+      } else if(isSafe(idx, req) == 1) {  // Test safe state
         // Grant request
         int *alloc_client = allocated->data[idx];
         for(int i=0; i < nb_resources; i++) {
@@ -220,20 +218,45 @@ st_process_requests (server_thread * st, int socket_fd)
         }
         printf("Request granted\n");
         fprintf (socket_w, "ACK\n");
+        //TODO : keep track of waiting clients
+        count_accepted++;
       } else {
 	printf("Request put on wait\n");
         fprintf (socket_w, "WAIT %d\n", wait_time);
       }
     } else if(strcmp(cmd, "CLO") == 0) {
+
       // Case 3 : clo
       int idx = getClientIdx(ct_id);
       printf("Thread %d closed client %d at index %d", st->id, ct_id, idx);
-      // TODO : deallocate max and allocated
-      //nb_registered_clients--;
-      fprintf (socket_w, "ACK\n");
+      clients_ended++;
+
+      if(idx < 0) {
+        fprintf (socket_w, "ERR invalid process id\n");
+      } else {
+        // Test if there are allocations left
+        int *alloc_client = allocated->data[idx];
+        int is_free = 1;
+        for(int i=0; i < nb_resources; i++) {
+          if(alloc_client[i] != 0) {
+            is_free = 0;
+          }
+        }
+
+        if(is_free == 1) {
+          // TODO : deallocate max and allocated
+          //registered_clients--;
+          fprintf (socket_w, "ACK\n");
+          count_dispatched++;
+        } else {
+          fprintf (socket_w, "ERR Client still holding ressources\n");
+        }
+      }
     } else if(strcmp(cmd, "END") == 0) {
       // Case 4 : end
-      //TODO : Close server / free structures
+      //TODO : test if there are clients running
+      //TODO : free structures max, allocated, client_ids
+      free(available);
       fprintf (socket_w, "ACK\n");
     } else {
       fprintf (socket_w, "ERR Unknown command\n");
@@ -253,6 +276,18 @@ int getClientIdx(int client_id) {
     }
   }
   return -1;
+}
+
+// Test if the request is valid
+int isValid (int client_idx, int req[]) {
+  int *max_client = max->data[client_idx];
+  int *alloc_client = allocated->data[client_idx];
+
+  for(int i=0; i < nb_resources; i++) {
+    if(req[i] <= max_client[i] - alloc_client[i] || req[i] + alloc_client[i] >= 0)
+      return 0;
+  }
+  return 1;
 }
 
 // Test if the new state following a request is safe
