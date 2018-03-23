@@ -52,6 +52,9 @@ unsigned int clients_ended = 0;
 
 // TODO: Ajouter vos structures de données partagées, ici.
 
+// Client thread waiting time
+int wait_time = 30;
+
 // Number of resources
 int nb_resources;
 
@@ -64,6 +67,8 @@ struct array_t *allocated;
 // Resources available
 int *available;
 
+// Client ids by index
+struct array_t *client_ids;
 
 static void sigint_handler(int signum) {
   // Code terminaison.
@@ -125,6 +130,9 @@ st_init ()
   // Initialise allocated
   max = new_array(2);
 
+  // Initialise client id array
+  client_ids = new_array(2);
+
   free(args);
   fclose(socket_r);
   close(socket_fd);
@@ -161,25 +169,30 @@ st_process_requests (server_thread * st, int socket_fd)
 
     printf ("Thread %d received the command: %s%s\n", st->id, cmd, args);
 
-    int ctId = atoi(strtok(args, " "));
+    int ct_id = atoi(strtok(args, " "));
     // Case 1 : ini
     if(strcmp(cmd, "INI") == 0) {
       nb_registered_clients++;
       // Initialise ressources max pour client
-      // TODO: increment max/allocated dynamically
       // TODO: test validity : max <= provisionned resources?? (can that be done?)
-      int *resources = malloc(nb_resources * sizeof(int));
+      int *max_client = malloc(nb_resources * sizeof(int));
       for(int i=0; i < nb_resources ; i++) {
-        resources[i] = atoi(strtok(NULL, " "));
+        max_client[i] = atoi(strtok(NULL, " "));
       }
-      push_back(max, resources);
-      int *pointer = max->data[0];
-      printf("Thread %d initialized client %d with %d\n", st->id, ctId, pointer[0]);
-      // reply
+      push_back(max, max_client);
+      int *alloc_client = malloc(nb_resources * sizeof(int));
+      for(int i=0; i < nb_resources ; i++) {
+        alloc_client[i] = 0;
+      }
+      push_back(allocated, alloc_client);
+      push_back(client_ids, ct_id);
+      printf("Thread %d initialized client %d\n", st->id, ct_id);
+      fprintf (socket_w, "ACK\n");
     } else if(strcmp(cmd, "REQ") == 0) {
       // Case 2 : req
-      printf("Thread %d received request from client %d\n", st->id, ctId);
-      // TODO: process request
+      int idx = getClientIdx(ct_id);
+      //TODO : invalid id error
+      printf("Thread %d received request from client %d at index %d\n", st->id, ct_id, idx);
       // Parse request args
       int req[nb_resources];
       for(int i=0; i < nb_resources; i++) {
@@ -188,26 +201,32 @@ st_process_requests (server_thread * st, int socket_fd)
       // Test request validity
       // req <= max - allocated for client
       // req + allocated >= 0 for client
-      // reply with error if invalid 
-      // Test if request can be granted
-      // newstate = available - req >= 0 
-      // if(cannot be granted)
-      // reply with wait
-      // Test new state
-      // if(isSafe)
-      // grant request
-      // reply with ack
-      // else reply with wait
+      // reply with error if invalid
+
+      if(isSafe(idx, req) == 1) {
+        // Grant request
+        int *alloc_client = allocated->data[idx];
+        for(int i=0; i < nb_resources; i++) {
+          alloc_client[i] = req[i] + alloc_client[i];
+          available[i] = available[i] - req[i];
+        }
+        printf("Request granted\n");
+        fprintf (socket_w, "ACK\n");
+      } else {
+	printf("Request put on wait\n");
+        fprintf (socket_w, "WAIT %d\n", wait_time);
+      }
     } else if(strcmp(cmd, "CLO") == 0) {
       // Case 3 : clo
-      printf("Thread %d closed client %d", st->id, ctId);
+      int idx = getClientIdx(ct_id);
+      printf("Thread %d closed client %d at index %d", st->id, ct_id, idx);
       // TODO : deallocate max and allocated
-      nb_registered_clients--;
-      // reply ack
+      //nb_registered_clients--;
+      fprintf (socket_w, "ACK\n");
     } else if(strcmp(cmd, "END") == 0) {
       // Case 4 : end
       //TODO : Close server / free structures
-      // reply ACK
+      fprintf (socket_w, "ACK\n");
     } else {
       fprintf (socket_w, "ERR Unknown command\n");
     }
@@ -218,22 +237,85 @@ st_process_requests (server_thread * st, int socket_fd)
   fclose (socket_w);
   // TODO end
 }
-// Test if a state is safe
-int isSafe (int state[]) {
-    // 1. Let work and finish vectors of m and n length
-    // initialize work = available
-    // finish = false
 
+int getClientIdx(int client_id) {
+  for(int i=0; i < nb_registered_clients; i++) {
+    if(client_ids->data[i] == client_id) {
+      return i;
+    }
+  }
+  return -1;
+}
+// Test if the new state following a request is safe
+int isSafe (int client_idx, int req[]) {
+
+  // Test if the request can be granted
+  int newstate[nb_resources];
+  for(int i=0; i < nb_resources; i++) {
+    newstate[i] = available[i] - req[i];
+    if(newstate[i] < 0) {
+      return 0;
+    }
+  }
+  return 1;
+  // Compute need matrix
+  int need[nb_registered_clients][nb_resources];
+  for(int i=0; i < nb_registered_clients; i++) {
+    for(int j=0; j < nb_resources; j++) {
+      //need[i][j] = max[i][j] - allocated[i][j]
+    }
+  }
+  // Test if new state is safe
+
+    int nb_running = nb_registered_clients;
+    int running[nb_registered_clients];
+    for(int i=0; i < nb_registered_clients; i++) {
+      running[i] = 1;
+    }
+    int at_least_one_allocated;
+    while(nb_running > 0) {
+      at_least_one_allocated = 0;
+      for(int i=0; i < nb_registered_clients; i++) {
+        if(running[i] == 1) {
+          //for(resources) {
+           // total_available - (max_demand-currentlyallocated) >= 0
+         // }
+        }
+      }
+    }
+
+
+
+
+
+
+    // 1. Let work and finish vectors of m and n length
+    int work[nb_resources];
+    for(int i=0; i < nb_resources; i++) {
+      work[i] = available[i];
+    }
+    int finish[nb_registered_clients];
+    for(int j=0; j < nb_registered_clients; j++) {
+      finish[j] = 0;
+    }
+
+    int safe = 0;
     // 2. find i such that finish[i] = false & need[i][] <= work
+    // need = ???
     // if !E, go to 4.
+    for(int i=0; i < nb_registered_clients; i++) {
+      if(finish[i] == 0) {
+
+      }
+    }
 
     // 3. if E, work = work + allocated[i][]
     // finish[i] = true
     // go to 2.
 
     // 4. if finish=true for all i
-    // isSafe = true
-    return 0;
+    // safe = 1;
+    return safe;
 }
 
 
