@@ -97,6 +97,7 @@ st_init ()
    socket_fd = accept(server_socket_fd, (struct sockaddr *)&addr, &socket_len);
   }
   FILE *socket_r = fdopen (socket_fd, "r");
+  FILE *socket_w = fdopen (socket_fd, "w");
   char cmd[4] = {NUL, NUL, NUL, NUL};
   fread (cmd, 3, 1, socket_r);
   char *args = NULL;
@@ -107,6 +108,9 @@ st_init ()
     fprintf(stdout, "Init received cmd %s%s", cmd, args);
     // Initialise nombre de resources
     nb_resources = atoi(args);
+    fprintf(socket_w, "ACK\n");
+  } else {
+    fprintf(socket_w, "ERR Server not initialized\n");
   }
 
   fread (cmd, 3, 1, socket_r);
@@ -122,6 +126,9 @@ st_init ()
     for(int i=1 ; i < nb_resources; i++) {
       available[i] = atoi(strtok(NULL, " "));
     }
+    fprintf(socket_w, "ACK\n");
+  } else {
+    fprintf(socket_w, "ERR Please provide resources\n");
   }
 
   // Initialise max
@@ -135,6 +142,7 @@ st_init ()
 
   free(args);
   fclose(socket_r);
+  fclose(socket_w);
   close(socket_fd);
 
   char strA[100];
@@ -246,6 +254,7 @@ int getClientIdx(int client_id) {
   }
   return -1;
 }
+
 // Test if the new state following a request is safe
 int isSafe (int client_idx, int req[]) {
 
@@ -257,57 +266,76 @@ int isSafe (int client_idx, int req[]) {
       return 0;
     }
   }
-  return 1;
+
   // Compute need matrix
   int need[nb_registered_clients][nb_resources];
   for(int i=0; i < nb_registered_clients; i++) {
+    int *max_client = max->data[i];
+    int *alloc_client = allocated->data[i];
     for(int j=0; j < nb_resources; j++) {
-      //need[i][j] = max[i][j] - allocated[i][j]
+      if(client_idx == j) {
+        need[i][j] = max_client[j] - (alloc_client[j] + req[j]);
+      } else {
+        need[i][j] = max_client[j] - alloc_client[j];
+      }
     }
   }
-  // Test if new state is safe
 
-    int nb_running = nb_registered_clients;
-    int running[nb_registered_clients];
+  // Test if new state is safe
+  int nb_running = nb_registered_clients;
+  int running[nb_registered_clients];
+  for(int i=0; i < nb_registered_clients; i++) {
+    running[i] = 1;
+  }
+
+  int at_least_one_allocated;
+  while(nb_running > 0) {
+    at_least_one_allocated = 0;
     for(int i=0; i < nb_registered_clients; i++) {
-      running[i] = 1;
-    }
-    int at_least_one_allocated;
-    while(nb_running > 0) {
-      at_least_one_allocated = 0;
-      for(int i=0; i < nb_registered_clients; i++) {
-        if(running[i] == 1) {
-          //for(resources) {
-           // total_available - (max_demand-currentlyallocated) >= 0
-         // }
+      if(running[i] == 1) {
+        int can_finish = 1;
+        for(int j=0; j < nb_resources; j++) {
+          if(newstate[j] - need[i][j] < 0) {
+            can_finish = 0;
+          }
+        }
+        if(can_finish == 1) {
+          at_least_one_allocated = 1;
+          running[i] = 0;
+          nb_running--;
+          int *max_ct = max->data[i];
+          for(int k=0; k < nb_resources; k++) {
+            newstate[k] += max_ct[k] - need[i][k];
+          }
         }
       }
     }
+    if(at_least_one_allocated == 0) {
+      return 0;
+    }
+  }
+  return 1;
 
-
-
-
-
-
+    // TODO : remove 
     // 1. Let work and finish vectors of m and n length
-    int work[nb_resources];
-    for(int i=0; i < nb_resources; i++) {
-      work[i] = available[i];
-    }
-    int finish[nb_registered_clients];
-    for(int j=0; j < nb_registered_clients; j++) {
-      finish[j] = 0;
-    }
+   // int work[nb_resources];
+   // for(int i=0; i < nb_resources; i++) {
+    //  work[i] = available[i];
+   // }
+   // int finish[nb_registered_clients];
+   // for(int j=0; j < nb_registered_clients; j++) {
+     // finish[j] = 0;
+   // }
 
-    int safe = 0;
+   // int safe = 0;
     // 2. find i such that finish[i] = false & need[i][] <= work
     // need = ???
     // if !E, go to 4.
-    for(int i=0; i < nb_registered_clients; i++) {
-      if(finish[i] == 0) {
+   // for(int i=0; i < nb_registered_clients; i++) {
+     // if(finish[i] == 0) {
 
-      }
-    }
+    //  }
+   // }
 
     // 3. if E, work = work + allocated[i][]
     // finish[i] = true
@@ -315,7 +343,7 @@ int isSafe (int client_idx, int req[]) {
 
     // 4. if finish=true for all i
     // safe = 1;
-    return safe;
+ // return safe;
 }
 
 
