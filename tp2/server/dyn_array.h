@@ -3,6 +3,12 @@
 
 #include <stddef.h>
 
+typedef struct array_t array_t;
+struct array_t {
+  size_t size, capacity;
+  void **data;
+};
+
 struct array_t *new_array (size_t capacity);
 void for_each(struct array_t *array, void (*callback)(void*));
 int push_back(struct array_t *array, void *element);

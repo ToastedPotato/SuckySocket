@@ -8,7 +8,7 @@ CFLAGS=-g -std=c99 -Wall -pedantic -D_REENTRENT=1
 LDFLAGS=-pthread
 
 CLT_O = main.o client_thread.o
-SRV_O = main.o server_thread.o
+SRV_O = main.o dyn_array.o server_thread.o
 
 .PHONY: default all clean format client server test \
 	run \
@@ -17,7 +17,7 @@ SRV_O = main.o server_thread.o
 
 default: all
 
-all: $(BUILD_DIR)/tp2_client $(BUILD_DIR)/tp2_server rapport.pdf
+all: $(BUILD_DIR)/tp2_client $(BUILD_DIR)/tp2_server 
 
 $(BUILD_DIR)/tp2_client: $(patsubst %.o,$(BUILD_DIR)/client/%.o, $(CLT_O))
 	$(CC) $(LDFLAGS) -o $@ $(patsubst %.o,$(BUILD_DIR)/client/%.o, $(CLT_O))

@@ -9,6 +9,8 @@
 #include <pthread.h>
 #include <unistd.h>
 
+#include "dyn_array.h"
+
 extern bool accepting_connections;
 
 typedef struct server_thread server_thread;

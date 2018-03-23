@@ -3,11 +3,6 @@
 #include <errno.h>
 #include <malloc.h>
 
-struct array_t {
-  size_t size, capacity;
-  void **data;
-};
-
 struct array_t *new_array (size_t capacity) {
   struct array_t *new = malloc(sizeof(*new));
   if (!new) {

@@ -56,10 +56,10 @@ unsigned int clients_ended = 0;
 int nb_resources;
 
 // Maximum resources that can be requested by each process
-int *max;
+struct array_t *max;
 
 // Resources currently being holded by each process
-int *allocated;
+struct array_t *allocated;
 
 // Resources available
 int *available;
@@ -119,16 +119,16 @@ st_init ()
     }
   }
 
-  // TODO: Initialise max
-  allocated = malloc(nb_resources * sizeof(int));
+  // Initialise max
+  allocated = new_array(2);
 
-  // TODO: Initialise allocated
-  max = malloc(nb_resources * sizeof(int));
+  // Initialise allocated
+  max = new_array(2);
 
   free(args);
   fclose(socket_r);
   close(socket_fd);
-  
+
   char strA[100];
   sprintf(strA,"Available resources:");
   for(int j=0; j < nb_resources; j++) {
@@ -168,10 +168,13 @@ st_process_requests (server_thread * st, int socket_fd)
       // Initialise ressources max pour client
       // TODO: increment max/allocated dynamically
       // TODO: test validity : max <= provisionned resources?? (can that be done?)
+      int *resources = malloc(nb_resources * sizeof(int));
       for(int i=0; i < nb_resources ; i++) {
-        max[i] = atoi(strtok(NULL, " "));
+        resources[i] = atoi(strtok(NULL, " "));
       }
-      printf("Thread %d initialized client %d with %d\n", st->id, ctId, max[1]);
+      push_back(max, resources);
+      int *pointer = max->data[0];
+      printf("Thread %d initialized client %d with %d\n", st->id, ctId, pointer[0]);
       // reply
     } else if(strcmp(cmd, "REQ") == 0) {
       // Case 2 : req
