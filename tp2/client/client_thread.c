@@ -54,6 +54,7 @@ unsigned int server_ready = 0;
 
 pthread_mutex_t server_setup_mutex = PTHREAD_MUTEX_INITIALIZER;
 
+unsigned int num_running = 0;
 // Vous devez modifier cette fonction pour faire l'envoie des requêtes
 // Les ressources demandées par la requête doivent être choisies aléatoirement
 // (sans dépasser le maximum pour le client). Elles peuvent être positives
@@ -183,6 +184,9 @@ ct_code (void *param)
     sprintf(init, "%s\n", init);
     write(socket_fd, &init, strlen(init));
 
+    //TODO: protect with mutex
+    num_running++;
+
     // Vous devez ici faire l'initialisation des petits clients (`INI`).
     // TP2 TODO:END
     
@@ -273,6 +277,7 @@ ct_code (void *param)
     }
 
     // TODO: Send CLO to server
+    num_running--;
     return NULL;
 }
 
@@ -288,9 +293,22 @@ ct_wait_server ()
 {
 
   // TP2 TODO: IMPORTANT code non valide.
+  //TODO : deux solutions : 
+  // 1. keep track of num_running threads
+  //  send END to server when num_running = 0  
+  // **need to establish connection with server
+
+  // Probablement mieux!!
+  // 2. keep track of server status
+  // send END in last thread to finish + update server status
+  // no need to reopen a connection here
 
   sleep (4);
-
+  while(num_running != 0) {
+    //busy wait
+  }
+  // Send end request
+  printf("Ending client %d", num_running);
   // TP2 TODO:END
 
 }
