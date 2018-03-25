@@ -70,6 +70,18 @@ int *available;
 // Client ids by index
 struct array_t *client_ids;
 
+// Mutex pour l'acces aux sections critiques et donnes partagees
+pthread_mutex_t critical_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+// Mutex pour l'acces aux donnees du journal
+pthread_mutex_t journal_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+// Helper functions
+void print_resources();
+int getClientIdx(int client_id);
+int isValid (int client_idx, int req[]);
+int isSafe (int client_idx, int req[]);
+
 static void sigint_handler(int signum) {
   // Code terminaison.
   accepting_connections = 0;
@@ -141,7 +153,14 @@ st_init ()
   fclose(socket_w);
   close(socket_fd);
 
-  //TODO: cleanup
+  // TODO : DEBUG
+  print_resources();
+  // END TODO
+}
+
+//TODO : for debug  purposes
+void print_resources() {
+
   char strA[100];
   sprintf(strA,"Available resources:");
   for(int j=0; j < nb_resources; j++) {
@@ -149,7 +168,7 @@ st_init ()
   }
   sprintf(strA, "%s\n", strA);
   fprintf(stdout, "%s\n", strA);
-  // END TODO
+
 }
 
 void
@@ -177,38 +196,48 @@ st_process_requests (server_thread * st, int socket_fd)
     int ct_id = atoi(strtok(args, " "));
     // Case 1 : ini
     if(strcmp(cmd, "INI") == 0) {
-      nb_registered_clients++;
-      // Initialise ressources max pour client
+      // Initialise ressources pour client
       // TODO: test validity : max <= provisionned resources?? (can that be done?)
       int *max_client = malloc(nb_resources * sizeof(int));
-      for(int i=0; i < nb_resources ; i++) {
-        max_client[i] = atoi(strtok(NULL, " "));
-      }
-      push_back(max, max_client);
       int *alloc_client = malloc(nb_resources * sizeof(int));
       for(int i=0; i < nb_resources ; i++) {
+        max_client[i] = atoi(strtok(NULL, " "));
         alloc_client[i] = 0;
       }
+
+      // Section critique
+      pthread_mutex_lock(&critical_mutex);
+      push_back(max, max_client);
       push_back(allocated, alloc_client);
       push_back(client_ids, ct_id);
+      nb_registered_clients++;
+      pthread_mutex_unlock(&critical_mutex);
+
       printf("Thread %d initialized client %d\n", st->id, ct_id);
       fprintf (socket_w, "ACK\n");
     } else if(strcmp(cmd, "REQ") == 0) {
 
       // Case 2 : req
-      int idx = getClientIdx(ct_id);
-      printf("Thread %d received request from client %d at index %d\n", st->id, ct_id, idx);
-
       // Parse request args
       int req[nb_resources];
       for(int i=0; i < nb_resources; i++) {
           req[i] = atoi(strtok(NULL, " "));
       }
 
+      // Section critique
+      pthread_mutex_lock(&critical_mutex);
+
+      int idx = getClientIdx(ct_id);
+      printf("Thread %d received request from client %d at index %d\n", st->id, ct_id, idx);
       if(idx < 0 || isValid(idx, req) == 0) { // Test request validity
+        pthread_mutex_unlock(&critical_mutex);
         printf("Request invalid\n");
         fprintf (socket_w, "ERR invalid resources or id\n");
+
+        // Update journal
+        pthread_mutex_lock(&journal_mutex);
         count_invalid++;
+        pthread_mutex_unlock(&journal_mutex);
       } else if(isSafe(idx, req) == 1) {  // Test safe state
         // Grant request
         int *alloc_client = allocated->data[idx];
@@ -216,20 +245,31 @@ st_process_requests (server_thread * st, int socket_fd)
           alloc_client[i] = req[i] + alloc_client[i];
           available[i] = available[i] - req[i];
         }
+        print_resources();
+        pthread_mutex_unlock(&critical_mutex);
+
         printf("Request granted\n");
         fprintf (socket_w, "ACK\n");
+
+        // Update journal
         //TODO : keep track of waiting clients
+        pthread_mutex_lock(&journal_mutex);
         count_accepted++;
+        pthread_mutex_unlock(&journal_mutex);
       } else {
+        pthread_mutex_unlock(&critical_mutex);
 	printf("Request put on wait\n");
         fprintf (socket_w, "WAIT %d\n", wait_time);
       }
     } else if(strcmp(cmd, "CLO") == 0) {
 
       // Case 3 : clo
+
+      //Section critique
+      pthread_mutex_lock(&critical_mutex);
+
       int idx = getClientIdx(ct_id);
       printf("Thread %d closed client %d at index %d", st->id, ct_id, idx);
-      clients_ended++;
 
       if(idx < 0) {
         fprintf (socket_w, "ERR invalid process id\n");
@@ -245,18 +285,34 @@ st_process_requests (server_thread * st, int socket_fd)
 
         if(is_free == 1) {
           // TODO : deallocate max and allocated
-          //registered_clients--;
+          pthread_mutex_unlock(&critical_mutex);
           fprintf (socket_w, "ACK\n");
+
+          pthread_mutex_lock(&journal_mutex);
           count_dispatched++;
+          pthread_mutex_unlock(&journal_mutex);
         } else {
+          pthread_mutex_unlock(&critical_mutex);
           fprintf (socket_w, "ERR Client still holding ressources\n");
         }
+        pthread_mutex_lock(&journal_mutex);
+        clients_ended++;
+        pthread_mutex_unlock(&journal_mutex);
       }
     } else if(strcmp(cmd, "END") == 0) {
       // Case 4 : end
+      // Section critique
+      pthread_mutex_lock(&critical_mutex);
       //TODO : test if there are clients running
       //TODO : free structures max, allocated, client_ids
+      delete_array_callback(&max, free);
+      delete_array_callback(&allocated, free);
+      delete_array_callback(&client_ids, free);
       free(available);
+      pthread_mutex_unlock(&critical_mutex);
+
+      pthread_mutex_destroy(&critical_mutex);
+      pthread_mutex_destroy(&journal_mutex);
       fprintf (socket_w, "ACK\n");
     } else {
       fprintf (socket_w, "ERR Unknown command\n");
