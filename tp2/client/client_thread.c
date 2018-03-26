@@ -6,6 +6,8 @@
 #include <string.h>
 #include <unistd.h>
 
+#include <errno.h>
+
 #include "client_thread.h"
 
 // Socket library
@@ -48,6 +50,10 @@ pthread_mutex_t dispatch_mutex = PTHREAD_MUTEX_INITIALIZER;
 unsigned int request_sent = 0;
 
 pthread_mutex_t sent_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+unsigned int server_ready = 0;
+
+pthread_mutex_t server_setup = PTHREAD_MUTEX_INITIALIZER;
 
 unsigned int num_running = 0;
 // Vous devez modifier cette fonction pour faire l'envoie des requêtes
@@ -148,14 +154,15 @@ ct_code (void *param)
     //	perror ("ERROR connecting");
     //	exit(1);
     }
-       
-    /* Initialize server
-    pthread_mutex_lock(&server_setup_mutex);
+           
+    // Initialize server
+    pthread_mutex_lock(&server_setup);
     if(!server_ready){
+                
         char beg[80];
         sprintf(beg, "BEG %d\n", num_resources);
         write(socket_fd, &beg, strlen(beg));
-        
+                
         char pro[80];
         sprintf(pro,"PRO");
         for(int j=0; j < num_resources; j++) {
@@ -163,12 +170,13 @@ ct_code (void *param)
         }
         sprintf(pro, "%s\n", pro);
         write(socket_fd, &pro, strlen(pro));
-               
+                
         server_ready = 1;
+        
     }
-    pthread_mutex_unlock(&server_setup_mutex);*/
-    
+    pthread_mutex_unlock(&server_setup);       
     // Initialize client thread
+    
     char init[80];
     int max_resources[num_resources];
     sprintf(init, "INI %d", ct->id);
@@ -182,6 +190,7 @@ ct_code (void *param)
     }
     sprintf(init, "%s\n", init);
     write(socket_fd, &init, strlen(init));
+        
 
     //TODO: protect with mutex
     num_running++;
@@ -215,7 +224,7 @@ ct_code (void *param)
                 
                 //renvoi de la même requête sous réception d'un "WAIT"                
                 sleep(wait_time);
-                
+                fprintf(stdout, "Wait time: %d seconds\n", wait_time);
                 send_request (ct->id, request_id, 1, requested, max_resources, 
                     held, socket_fd);
             }else {
@@ -226,26 +235,27 @@ ct_code (void *param)
             }
             
             //pour l'instant, j'assumes que les réponses du serveur < 40 char
-            char server_response[40];
-            int result = 0;
+            char server_response[10];
             //si aucune réponse du serveur, on attends et on revérifie
-            while (result == 0){
-                sleep(5);
-                result = read(socket_fd, server_response, 39);
-            }
+                            
+            read(socket_fd, server_response, 9);
             
-            if(strcmp(server_response, "ACK") == 0){
+            //fprintf(stdout, "%s\n", server_response);
+            
+            if(strstr(server_response, "ACK")){
                 
                 request_outcome = 1;
                 
                 pthread_mutex_lock(&ack_mutex);
                 count_accepted++;
                 pthread_mutex_unlock(&ack_mutex);
-            }else if(strstr(server_response, "WAIT ")){
+            }else if(strstr(server_response, "WAIT")){
                 
-                //la durée de l'attente est le nombre après "WAIT "
+                //la durée de l'attente est le nombre après "WAIT "                
+                server_response[9] = '\0';
+                fprintf(stdout, "%s\n", server_response);
                 strtok(server_response, " ");
-                wait_time = atoi (strtok(NULL, ""));
+                wait_time = atoi (strtok(NULL, "\n"));
                 request_outcome = 0;
                 
                 pthread_mutex_lock(&req_wait_mutex);
@@ -276,6 +286,10 @@ ct_code (void *param)
     }
 
     // TODO: Send CLO to server
+    char close[10];
+    sprintf(init, "CLO %d\n", ct->id);
+    write(socket_fd, &close, strlen(close));
+    
     num_running--;
     return NULL;
 }
