@@ -49,11 +49,6 @@ unsigned int request_sent = 0;
 
 pthread_mutex_t sent_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-//Variable d'initialization du serveur
-unsigned int server_ready = 0;
-
-pthread_mutex_t server_setup_mutex = PTHREAD_MUTEX_INITIALIZER;
-
 unsigned int num_running = 0;
 // Vous devez modifier cette fonction pour faire l'envoie des requêtes
 // Les ressources demandées par la requête doivent être choisies aléatoirement
@@ -153,14 +148,14 @@ ct_code (void *param)
     //	perror ("ERROR connecting");
     //	exit(1);
     }
-
-    // Initialize server
+       
+    /* Initialize server
     pthread_mutex_lock(&server_setup_mutex);
     if(!server_ready){
         char beg[80];
         sprintf(beg, "BEG %d\n", num_resources);
         write(socket_fd, &beg, strlen(beg));
-
+        
         char pro[80];
         sprintf(pro,"PRO");
         for(int j=0; j < num_resources; j++) {
@@ -168,11 +163,11 @@ ct_code (void *param)
         }
         sprintf(pro, "%s\n", pro);
         write(socket_fd, &pro, strlen(pro));
-
+               
         server_ready = 1;
     }
-    pthread_mutex_unlock(&server_setup_mutex);
-
+    pthread_mutex_unlock(&server_setup_mutex);*/
+    
     // Initialize client thread
     char init[80];
     int max_resources[num_resources];

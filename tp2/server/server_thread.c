@@ -340,7 +340,7 @@ int isValid (int client_idx, int req[]) {
   int *alloc_client = allocated->data[client_idx];
 
   for(int i=0; i < nb_resources; i++) {
-    if(req[i] <= max_client[i] - alloc_client[i] || req[i] + alloc_client[i] >= 0)
+    if(req[i] > max_client[i] - alloc_client[i] || req[i] + alloc_client[i] < 0)
       return 0;
   }
   return 1;
