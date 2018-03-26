@@ -87,8 +87,12 @@ send_request (int client_id, int request_id, int resend, int req_values[],
             //requêtes normales 
             sprintf(req, "REQ %d", client_id);
             for(int j=0; j < num_resources; j++) {
-                
-                int value = (rand() % ((max[j]+1) * 2)) - max[j];
+               
+                int value;            
+                do{
+                    
+                   value = (rand() % ((max[j]+1) * 2)) - (max[j] + 1);
+                }while(value < (held[j] * -1) && value < 0);
                 
                 sprintf(req, "%s %d", req, value);
                 req_values[j] = value;
