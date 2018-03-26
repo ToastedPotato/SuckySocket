@@ -183,6 +183,7 @@ ct_code (void *param)
         }while(strstr(server_response, "ACK") == NULL);
         
         memset(server_response, 0, strlen(server_response));             
+        counter = 0;
         char pro[80];
         sprintf(pro,"PRO");
         for(int j=0; j < num_resources; j++) {
