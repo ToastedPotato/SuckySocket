@@ -245,7 +245,7 @@ ct_code (void *param)
         
         int request_outcome = -1;
         
-        int wait_time = 0;
+        int wait_time = 5;
 
         while (request_outcome != 1) {
                         
@@ -266,33 +266,47 @@ ct_code (void *param)
             //pour l'instant, j'assumes que les réponses du serveur < 40 char
             char server_response[50];
             
-            char character[2];
+            //char character[2];
             
-            int counter = 0;
+            //int counter = 0;
             
-            do{                
+            /*do{                
                 memset(character, 0, strlen(character));
                 read(socket_fd, character, 1);
                 sprintf(server_response, "%s%s", server_response, character);
                 counter++;
             }while(strstr(character, "\n") == NULL);
-            server_response[counter] = '\0';
+            server_response[counter] = '\0';*/
+            ssize_t bruh = 0;
+            
+            do{
+                bruh = recv(socket_fd, server_response, 49, 0);
+            }while(bruh <= 0);
+            
+            for(int i = 0; i < 50; i++){
+                if(server_response[i] == "\n"){
+                    server_response[i+1] = '\0';
+                }
+            }
             
             fprintf(stdout, "%s\n", server_response);
             
-            if(strstr(server_response, "ACK")){
+            if(strcmp(server_response, "ACK") >= 0){
                 
+                fprintf(stdout, "Oh snap! almost crashed lol\n");
                 request_outcome = 1;
                 
                 pthread_mutex_lock(&ack_mutex);
                 count_accepted++;
                 pthread_mutex_unlock(&ack_mutex);
-            }else if(strstr(server_response, "WAIT")){
+            }else if(strcmp(server_response, "WAIT") > 0){
                 
                 //la durée de l'attente est le nombre après "WAIT "                
+                fprintf(stdout, "You got this far, nice bruh!\n");
                 strtok(server_response, " ");
                 wait_time = atoi (strtok(NULL, ""));
                 fprintf(stdout, "%d", wait_time);
+                fprintf(stdout, "Oh snap, no crash yet!\n");
                 request_outcome = 0;
                 
                 pthread_mutex_lock(&req_wait_mutex);
@@ -305,7 +319,6 @@ ct_code (void *param)
                 pthread_mutex_lock(&err_mutex);
                 count_invalid++;
                 pthread_mutex_unlock(&err_mutex);
-                sleep(5);
             }
         }
         

@@ -268,8 +268,8 @@ st_process_requests (server_thread * st, int socket_fd)
         char wait_msg[9];
         sprintf(wait_msg, "WAIT ");
         sprintf(wait_msg, "%s%d\n",wait_msg, wait_time);
-        ssize_t result = send (socket_fd, &wait_msg, strlen(wait_msg), 0);
-        fprintf(stdout, "%ld\n", result);        
+        send (socket_fd, &wait_msg, strlen(wait_msg), 0);
+               
       }
     } else if(strcmp(cmd, "CLO") == 0) {
 
