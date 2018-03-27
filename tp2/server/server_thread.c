@@ -56,7 +56,7 @@ unsigned int clients_ended = 0;
 const char *acknowledged = "ACK\n";
 
 // Client thread waiting time
-int wait_time = 30;
+int wait_time = 5;
 
 // Number of resources
 int nb_resources;
@@ -268,8 +268,13 @@ st_process_requests (server_thread * st, int socket_fd)
         char wait_msg[15];
         sprintf(wait_msg, "WAIT");
         sprintf(wait_msg, "%s %d\n",wait_msg, wait_time);
-        fprintf(stdout, "%s", wait_msg);
-        send (socket_fd, wait_msg, strlen(wait_msg), 0);        
+        for(int i = 0; i < strlen(wait_msg); i++){
+            if(wait_msg[i] == "\n"){
+                wait_msg[i+1] = '\0';
+                break;
+            }
+        }
+        send (socket_fd, &wait_msg, strlen(wait_msg), 0);        
       }
     } else if(strcmp(cmd, "CLO") == 0) {
 

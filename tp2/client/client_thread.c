@@ -55,9 +55,10 @@ unsigned int server_ready = 0;
 
 pthread_mutex_t server_setup = PTHREAD_MUTEX_INITIALIZER;
 
-pthread_mutex_t socket_read = PTHREAD_MUTEX_INITIALIZER;
-
 unsigned int num_running = 0;
+
+pthread_mutex_t running_mutex = PTHREAD_MUTEX_INITIALIZER;
+
 // Vous devez modifier cette fonction pour faire l'envoie des requêtes
 // Les ressources demandées par la requête doivent être choisies aléatoirement
 // (sans dépasser le maximum pour le client). Elles peuvent être positives
@@ -164,26 +165,27 @@ ct_code (void *param)
         char server_response[50];
             
         char character[2];
-            
+        
         int counter = 0;
-                        
+                                
         char beg[80];
         sprintf(beg, "BEG %d\n", num_resources);
         
         do{
-            send(socket_fd, &beg, strlen(beg), 0);
-                    
+            send(socket_fd, &beg, strlen(beg), 0);        
             do{                
                 memset(character, 0, strlen(character));
                 read(socket_fd, character, 1);
                 sprintf(server_response, "%s%s", server_response, character);
                 counter++;
             }while(strstr(character, "\n") == NULL);
-            server_response[counter+1] = '\0';
+            server_response[counter] = '\0';
         }while(strstr(server_response, "ACK") == NULL);
         
-        memset(server_response, 0, strlen(server_response));             
+        memset(server_response, 0, strlen(server_response));
+        
         counter = 0;
+        
         char pro[80];
         sprintf(pro,"PRO");
         for(int j=0; j < num_resources; j++) {
@@ -193,16 +195,16 @@ ct_code (void *param)
         
         do{
             send(socket_fd, &pro, strlen(pro), 0);
-                    
+                
             do{                
                 memset(character, 0, strlen(character));
                 read(socket_fd, character, 1);
                 sprintf(server_response, "%s%s", server_response, character);
                 counter++;
             }while(strstr(character, "\n") == NULL);
-            server_response[counter+1] = '\0';
+            server_response[counter] = '\0';
         }while(strstr(server_response, "ACK") == NULL);
-                
+                        
         server_ready = 1;
         
     }else{fprintf(stdout, "Server ready!\n");}
@@ -211,7 +213,6 @@ ct_code (void *param)
     
     char init[80];
     int max_resources[num_resources];
-    int needed[num_resources];
     sprintf(init, "INI %d", ct->id);
 
     srand((unsigned int)time(NULL) + ct->pt_tid);  
@@ -219,7 +220,6 @@ ct_code (void *param)
     for(int i=0; i < num_resources; i++) {
         int value = rand() % provisioned_resources[i];
         max_resources[i] = value;
-        needed[i] = value;
         sprintf(init, "%s %d", init, value);
     }
     sprintf(init, "%s\n", init);
@@ -227,8 +227,10 @@ ct_code (void *param)
         
 
     //TODO: protect with mutex
-    num_running++;
-
+    //pthread_mutex_lock(&running_mutex);
+    //num_running++;
+    //pthread_mutex_unlock(&running_mutex);
+    
     // Vous devez ici faire l'initialisation des petits clients (`INI`).
     // TP2 TODO:END
     
@@ -252,14 +254,7 @@ ct_code (void *param)
         int wait_time = 0;
 
         while (request_outcome != 1) {
-                  
-            int sum = 0;
-            for(int i = 0; i < num_resources; i++){
-                sum = sum + needed[i];
-            }
-            
-            if(sum == 0){request_id = num_request_per_client -1;}
-            
+                        
             if (request_outcome == 0){
                 
                 //renvoi de la même requête sous réception d'un "WAIT"                
@@ -287,7 +282,7 @@ ct_code (void *param)
                 sprintf(server_response, "%s%s", server_response, character);
                 counter++;
             }while(strstr(character, "\n") == NULL);
-            server_response[counter+1] = '\0';
+            server_response[counter] = '\0';
             
             fprintf(stdout, "%s\n", server_response);
             
@@ -303,6 +298,7 @@ ct_code (void *param)
                 //la durée de l'attente est le nombre après "WAIT "                
                 strtok(server_response, " ");
                 wait_time = atoi (strtok(NULL, ""));
+                fprintf(stdout, "%d", wait_time);
                 request_outcome = 0;
                 
                 pthread_mutex_lock(&req_wait_mutex);
@@ -323,9 +319,7 @@ ct_code (void *param)
         for (int i = 0; i < num_resources; i++){
             
             held[i] = held[i] + requested[i];
-            if(requested[i] > 0){
-                needed[i] = needed[i] - requested[i];
-            }
+            
         }
         // TP2 TODO:END
 
@@ -342,7 +336,9 @@ ct_code (void *param)
     sprintf(init, "CLO %d\n", ct->id);
     send(socket_fd, &close, strlen(close), 0);
     
+    pthread_mutex_lock(&running_mutex);
     num_running--;
+    pthread_mutex_unlock(&running_mutex);
     return NULL;
 }
 
@@ -368,9 +364,9 @@ ct_wait_server ()
   // send END in last thread to finish + update server status
   // no need to reopen a connection here
 
-  sleep (4);
   while(num_running != 0) {
     //busy wait
+    sleep (4);
   }
   // Send end request
   printf("Ending client %d", num_running);
@@ -383,6 +379,7 @@ void
 ct_init (client_thread * ct)
 {
   ct->id = count++;
+  num_running++;
 }
 
 void

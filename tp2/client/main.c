@@ -20,8 +20,7 @@ main (int argc, char *argv[])
     for (unsigned int i = 0; i < num_resources; i++)
     provisioned_resources[i] = atoi (argv[i + 4]);
      
-    client_thread *client_threads
-    = malloc (num_clients * sizeof (client_thread));
+    client_thread *client_threads = malloc(num_clients * sizeof(client_thread));
     for (unsigned int i = 0; i < num_clients; i++)
         ct_init (&(client_threads[i]));
 
