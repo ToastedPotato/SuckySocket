@@ -6,7 +6,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#include <errno.h>
+#include <pthread.h>
 
 #include "client_thread.h"
 
@@ -163,29 +163,24 @@ ct_code (void *param)
     if(!server_ready){
         
         char server_response[50];
-            
-        char character[2];
-        
-        int counter = 0;
-                                
+                                         
         char beg[80];
         sprintf(beg, "BEG %d\n", num_resources);
         
         do{
-            send(socket_fd, &beg, strlen(beg), 0);        
-            do{                
-                memset(character, 0, strlen(character));
-                read(socket_fd, character, 1);
-                sprintf(server_response, "%s%s", server_response, character);
-                counter++;
-            }while(strstr(character, "\n") == NULL);
-            server_response[counter] = '\0';
-        }while(strstr(server_response, "ACK") == NULL);
+            send(socket_fd, &beg, strlen(beg), 0);
+            recv(socket_fd, server_response, 49, MSG_WAITALL);
+            
+            for(int i = 0; i < 50; i++){
+                if(server_response[i] == "\n"){
+                    server_response[i+1] = '\0';
+                }
+            }
+            
+        }while(!(strcmp(server_response, "ACK") >= 0));
         
         memset(server_response, 0, strlen(server_response));
-        
-        counter = 0;
-        
+                        
         char pro[80];
         sprintf(pro,"PRO");
         for(int j=0; j < num_resources; j++) {
@@ -195,15 +190,15 @@ ct_code (void *param)
         
         do{
             send(socket_fd, &pro, strlen(pro), 0);
-                
-            do{                
-                memset(character, 0, strlen(character));
-                read(socket_fd, character, 1);
-                sprintf(server_response, "%s%s", server_response, character);
-                counter++;
-            }while(strstr(character, "\n") == NULL);
-            server_response[counter] = '\0';
-        }while(strstr(server_response, "ACK") == NULL);
+            recv(socket_fd, server_response, 49, MSG_WAITALL);
+            
+            for(int i = 0; i < 50; i++){
+                if(server_response[i] == "\n"){
+                    server_response[i+1] = '\0';
+                }
+            }  
+            
+        }while(!(strcmp(server_response, "ACK") >= 0));
                         
         server_ready = 1;
         
@@ -233,6 +228,12 @@ ct_code (void *param)
         held[i] = 0;    
     }
     
+    int requested[num_resources];
+        
+    for(int i = 0; i < num_resources; i++){
+        requested[i] = 0;
+    }
+    
     for (unsigned int request_id = 0; request_id < num_request_per_client;
       request_id++)
     {
@@ -241,7 +242,6 @@ ct_code (void *param)
         // Vous devez ici coder, conjointement avec le corps de send request,
         // le protocole d'envoi de requête.
                
-        int requested[num_resources];
         
         int request_outcome = -1;
         
@@ -266,21 +266,10 @@ ct_code (void *param)
             //pour l'instant, j'assumes que les réponses du serveur < 40 char
             char server_response[50];
             
-            //char character[2];
-            
-            //int counter = 0;
-            
-            /*do{                
-                memset(character, 0, strlen(character));
-                read(socket_fd, character, 1);
-                sprintf(server_response, "%s%s", server_response, character);
-                counter++;
-            }while(strstr(character, "\n") == NULL);
-            server_response[counter] = '\0';*/
             ssize_t bruh = 0;
             
             do{
-                bruh = recv(socket_fd, server_response, 49, 0);
+                bruh = recv(socket_fd, server_response, 49, MSG_WAITALL);
             }while(bruh <= 0);
             
             for(int i = 0; i < 50; i++){
@@ -291,9 +280,8 @@ ct_code (void *param)
             
             fprintf(stdout, "%s\n", server_response);
             
-            if(strcmp(server_response, "ACK") >= 0){
+            if(strcmp(server_response, "ACK") > 0){
                 
-                fprintf(stdout, "Oh snap! almost crashed lol\n");
                 request_outcome = 1;
                 
                 pthread_mutex_lock(&ack_mutex);
@@ -302,11 +290,9 @@ ct_code (void *param)
             }else if(strcmp(server_response, "WAIT") > 0){
                 
                 //la durée de l'attente est le nombre après "WAIT "                
-                fprintf(stdout, "You got this far, nice bruh!\n");
                 strtok(server_response, " ");
                 wait_time = atoi (strtok(NULL, ""));
                 fprintf(stdout, "%d", wait_time);
-                fprintf(stdout, "Oh snap, no crash yet!\n");
                 request_outcome = 0;
                 
                 pthread_mutex_lock(&req_wait_mutex);
