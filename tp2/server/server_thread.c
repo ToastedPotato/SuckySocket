@@ -265,16 +265,11 @@ st_process_requests (server_thread * st, int socket_fd)
       } else {
         pthread_mutex_unlock(&critical_mutex);
 	printf("Request put on wait\n");
-        char wait_msg[15];
-        sprintf(wait_msg, "WAIT");
-        sprintf(wait_msg, "%s %d\n",wait_msg, wait_time);
-        for(int i = 0; i < strlen(wait_msg); i++){
-            if(wait_msg[i] == "\n"){
-                wait_msg[i+1] = '\0';
-                break;
-            }
-        }
-        send (socket_fd, &wait_msg, strlen(wait_msg), 0);        
+        char wait_msg[9];
+        sprintf(wait_msg, "WAIT ");
+        sprintf(wait_msg, "%s%d\n",wait_msg, wait_time);
+        ssize_t result = send (socket_fd, &wait_msg, strlen(wait_msg), 0);
+        fprintf(stdout, "%ld\n", result);        
       }
     } else if(strcmp(cmd, "CLO") == 0) {
 

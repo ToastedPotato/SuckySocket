@@ -224,12 +224,6 @@ ct_code (void *param)
     }
     sprintf(init, "%s\n", init);
     send(socket_fd, &init, strlen(init), 0);
-        
-
-    //TODO: protect with mutex
-    //pthread_mutex_lock(&running_mutex);
-    //num_running++;
-    //pthread_mutex_unlock(&running_mutex);
     
     // Vous devez ici faire l'initialisation des petits clients (`INI`).
     // TP2 TODO:END
