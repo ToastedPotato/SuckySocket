@@ -65,15 +65,26 @@ unsigned int num_running = 0;
 void reConnect (int socket_fd, const struct sockaddr *addr){
     close(socket_fd);
     fflush(stdout);
-    fprintf(stdout, "Trying to reconnect");
+    fprintf(stdout, "Trying to reconnect\n");
     socket_fd = socket (AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
     if (socket_fd < 0) {
-        perror ("ERROR opening socket");
+        perror ("ERROR opening socket\n");
         exit(1);
     }   
     
     connect(socket_fd, (struct sockaddr *) &addr, 
         sizeof (addr));
+}
+
+void get_response(int socket_fd, char *buffer, int bufsize){
+
+    memset(buffer, 0, strlen(buffer));
+    recv(socket_fd, buffer, bufsize-1, MSG_WAITALL);
+    
+    if(strchr(buffer, '\n') != NULL){
+        buffer[buffer - strchr(buffer, 
+            '\n')] = '\0';
+    }else{memset(buffer, 0, strlen(buffer));}
 }
 
 void
@@ -183,13 +194,7 @@ ct_code (void *param)
         do{
             send(socket_fd, &beg, strlen(beg), MSG_NOSIGNAL);
             sleep(1);
-            memset(server_response, 0, strlen(server_response));
-            recv(socket_fd, server_response, 49, MSG_WAITALL);
-            
-            if(strchr(server_response, '\n') != NULL){
-                server_response[server_response - strchr(server_response, 
-                    '\n')] = '\0';
-            }else{memset(server_response, 0, strlen(server_response));}
+            get_response(socket_fd, server_response, sizeof(server_response));
         }while((strcmp(server_response, "ACK") < 0));
                                
         char pro[80];
@@ -202,13 +207,7 @@ ct_code (void *param)
         do{
             send(socket_fd, &pro, strlen(pro), MSG_NOSIGNAL);
             sleep(1);
-            memset(server_response, 0, strlen(server_response));
-            recv(socket_fd, server_response, 49, MSG_WAITALL);
-            
-            if(strchr(server_response, '\n') != NULL){
-                server_response[server_response - strchr(server_response, 
-                    '\n')] = '\0';
-            }else{memset(server_response, 0, strlen(server_response));}
+            get_response(socket_fd, server_response, sizeof(server_response));
         }while((strcmp(server_response, "ACK") < 0));
                         
         server_ready = 1;
@@ -233,16 +232,12 @@ ct_code (void *param)
     sprintf(init, "%s\n", init);
     
     do{
-        memset(response, 0, strlen(response));
+
         if(send(socket_fd, &init, strlen(init), MSG_NOSIGNAL) == -1){
             reConnect(socket_fd, (struct sockaddr *) &serv_addr);            
         }
         sleep(1);
-        recv(socket_fd, response, 49, MSG_WAITALL);
-        
-        if(strchr(response, '\n') != NULL){
-            response[response - strchr(response, '\n')] = '\0';
-        }else{memset(response, 0, strlen(response));}
+        get_response(socket_fd, response, sizeof(response));
         
     }while((strcmp(response, "ACK") < 0));
     
@@ -287,22 +282,14 @@ ct_code (void *param)
                         
             //pour l'instant, j'assumes que les réponses du serveur < 50 char
             char server_response[50];
-            
-            ssize_t result = 0;
-            
+                        
             do{
                 sleep(1);
                 
-                memset(server_response, 0, strlen(server_response));
-                result = recv(socket_fd, server_response, 49, MSG_WAITALL);
-                //on retire le \n et on termine la string avec un null si elle 
-                //est bien formée
-                if(strchr(server_response, '\n') != NULL){
-                    server_response[server_response - 
-                        strchr(server_response, '\n')] = '\0';
-                }else{memset(server_response, 0, strlen(server_response));}
+                get_response(socket_fd, server_response, 
+                    sizeof(server_response));
                 
-            }while(result <= 0);
+            }while(strlen(server_response) <= 0);
                         
             if(strstr(server_response, "ACK") != NULL){
                 
@@ -365,14 +352,10 @@ ct_code (void *param)
         char *end_msg = "END\n";
         
         do{
-            memset(response, 0, strlen(response));
+            
             send(socket_fd, &end_msg, strlen(end_msg), MSG_NOSIGNAL);
             sleep(1);
-            recv(socket_fd, response, 49, MSG_WAITALL);
-            
-            if(strchr(response, '\n') != NULL){
-                response[response - strchr(response, '\n')] = '\0';
-            }else{memset(response, 0, strlen(response));}
+            get_response(socket_fd, response, sizeof(response));
         
         }while((strcmp(response, "ACK") < 0));
         
