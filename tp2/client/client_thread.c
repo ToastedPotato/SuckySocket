@@ -230,7 +230,7 @@ ct_code (void *param)
             sleep(1);
             get_response(socket_fd, init_response, sizeof(init_response));
         }while((strcmp(init_response, "ACK") < 0));*/
-                        
+        close(socket_fd);      
         server_ready = 1;
         
     }else{fprintf(stdout, "Server ready for requests\n");}
@@ -261,6 +261,7 @@ ct_code (void *param)
 			
     }
 	fprintf(stdout, "Response : %s\n", response);
+	close(socket_fd);
     /*do{
 
         if(send(socket_fd, &init, strlen(init), MSG_NOSIGNAL) == -1){
@@ -352,8 +353,9 @@ ct_code (void *param)
                 count_invalid++;
                 pthread_mutex_unlock(&err_mutex);
             }
+			close(socket_fd);
         }
-        close(socket_fd);
+
         
         // TP2 TODO:END
 
@@ -381,6 +383,7 @@ ct_code (void *param)
     }
     //recv(socket_fd, response, 49, MSG_WAITALL);
     fprintf(stdout, "Sending CLO, response : %s", response); 
+	close(socket_fd);
 	
     pthread_mutex_lock(&dispatch_mutex);
     num_running--;
@@ -402,11 +405,10 @@ ct_code (void *param)
             get_response(socket_fd, response, sizeof(response));
         
         }while((strcmp(response, "ACK") < 0));*/
-        
+        close(socket_fd);
     }
     pthread_mutex_unlock(&dispatch_mutex);
     
-    close(socket_fd);
     return NULL;
 }
 
