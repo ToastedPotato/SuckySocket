@@ -142,12 +142,16 @@ send_request (int client_id, int request_id, int resend, int req_values[],
 
 }
 
-void * ct_code1 (void *param)
+void *
+ct_code (void *param)
 {
   int socket_fd = -1;
   client_thread *ct = (client_thread *) param;
 
   // TP2 TODO
+  // Connection au server.
+  // Vous devez ici faire l'initialisation des petits clients (`INI`).
+  // TP2 TODO:END
   // Connection au server.
   // Create socket
   socket_fd = socket (AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
@@ -164,15 +168,47 @@ void * ct_code1 (void *param)
   serv_addr.sin_port = htons (port_number);
   if (connect(socket_fd, (struct sockaddr *) &serv_addr, 
   sizeof (serv_addr))  < 0) {
-    // wrong way to check for errors with nonblocking sockets...
-    //	perror ("ERROR connecting");
-    //	exit(1);
+  // wrong way to check for errors with nonblocking sockets...
+  //	perror ("ERROR connecting");
+  //	exit(1);
+    }
+	
+  for (unsigned int request_id = 0; request_id < num_request_per_client;
+      request_id++)
+  {
+
+    // TP2 TODO
+    // Vous devez ici coder, conjointement avec le corps de send request,
+    // le protocole d'envoi de requête.
+
+    //send_request (ct->id, request_id, socket_fd);
+	
+    //Send request
+	char req[50];
+	sprintf(req, "REQ %d 0 0 0 0 0/n", client_id);
+	send(socket_fd, req, strlen(req), 0);
+	
+	char server_reply[200];
+	//Wait for reply
+	while(recv(socket_fd, server_reply, sizeof(server_reply), 0) < 0) {
+		
+	}
+	fprintf(stdout, "Received reply %s", server_reply);
+    // TP2 TODO:END
+
+    /* Attendre un petit peu (0s-0.1s) pour simuler le calcul.  */
+    usleep (random () % (100 * 1000));
+    /* struct timespec delay;
+     * delay.tv_nsec = random () % (100 * 1000000);
+     * delay.tv_sec = 0;
+     * nanosleep (&delay, NULL); */
   }
 
+  return NULL;
 }
 
 void *
-ct_code (void *param)
+ct_code1 (void *param)
 {
     int socket_fd = -1;
     client_thread *ct = (client_thread *) param;

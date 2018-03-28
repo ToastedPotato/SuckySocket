@@ -106,7 +106,7 @@ st_init ()
   // l'algorithme du banquier.
 
   // Attend une connection
-  struct sockaddr_in addr;
+  /*struct sockaddr_in addr;
   socklen_t socket_len = sizeof(addr);
   int socket_fd = -1;
   while(socket_fd < 0) {
@@ -147,6 +147,15 @@ st_init ()
   } else {
     char *err_msg = "ERR Please provide resources\n";
     send (socket_fd, err_msg, strlen(err_msg), 0);
+  }*/
+  
+  //TODO: temporary
+  nb_resources = 5;
+  available = malloc(nb_resources * sizeof(int));
+
+  available[0] = 2;
+  for(int i=1 ; i < nb_resources; i++) {
+    available[i] = 2;
   }
 
   // Initialise structures
@@ -155,9 +164,9 @@ st_init ()
   client_ids = new_array(2);
 
   free(args);
-  fclose(socket_r);
+  /*fclose(socket_r);
   fclose(socket_w);
-  close(socket_fd);
+  close(socket_fd);*/
 
   // TODO : DEBUG
   print_resources();
