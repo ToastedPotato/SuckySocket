@@ -49,7 +49,7 @@ unsigned int request_sent = 0;
 
 pthread_mutex_t sent_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-unsigned int server_ready = 0;
+int server_status = 0;
 
 pthread_mutex_t server_setup = PTHREAD_MUTEX_INITIALIZER;
 
@@ -192,7 +192,7 @@ ct_code (void *param)
            
     // Initialize server
     pthread_mutex_lock(&server_setup);
-    if(!server_ready){
+    if(!server_status){
         
 		// Connection au server
 		socket_fd = ct_connect();
@@ -203,7 +203,7 @@ ct_code (void *param)
 		
 		char init_response[50]; 
 		do{
-        sleep(1);
+        //sleep(1);
                 
 			get_response(socket_fd, init_response, 
             sizeof(init_response));
@@ -226,7 +226,7 @@ ct_code (void *param)
         send(socket_fd, &pro, strlen(pro), 0);
 		
 		do{
-        sleep(1);
+        //sleep(1);
                 
 			get_response(socket_fd, init_response, 
             sizeof(init_response));
@@ -267,7 +267,7 @@ ct_code (void *param)
 	
     char response[50];
 	do{
-        sleep(1);
+        //sleep(1);
                 
         get_response(socket_fd, response, 
             sizeof(response));
@@ -324,7 +324,7 @@ ct_code (void *param)
             //pour l'instant, j'assume que les réponses du serveur < 50 char
             char server_response[50];
             do{
-                sleep(1);
+                //sleep(1);
                 
                 get_response(socket_fd, server_response, 
                     sizeof(server_response));
@@ -384,14 +384,18 @@ ct_code (void *param)
     sprintf(clo, "CLO %d\n", ct->id);
 	send(socket_fd, &clo, strlen(clo), 0);
     //send(socket_fd, &clo, strlen(clo), MSG_NOSIGNAL);
+	do{
+        //sleep(1);
+                
+        get_response(socket_fd, response, 
+            sizeof(response));
+                
+    }while(strlen(response) <= 0);
+    fprintf(stdout, "Response : %s\n", response);
 	
-    //sleep(1);
-	memset(response, 0, strlen(response));
-	while(recv(socket_fd, response, sizeof(response), 0) < 0) {
-			
-    }
     //recv(socket_fd, response, 49, MSG_WAITALL);
-    fprintf(stdout, "Sending CLO, response : %s", response); 
+	fflush(stdout);
+    fprintf(stdout, "Sending CLO, response : %s\n", response); 
 	close(socket_fd);
 	
     pthread_mutex_lock(&dispatch_mutex);
@@ -402,11 +406,15 @@ ct_code (void *param)
 			
 		char *end_msg = "END\n";
         send(socket_fd, &end_msg, strlen(end_msg), 0);
-		memset(response, 0, strlen(response));
-		while(recv(socket_fd, response, sizeof(response), 0) < 0) {
-			
-		}
-		fprintf(stdout, "Sending END, response : %s", response);
+		do{
+        //sleep(1);
+                
+			get_response(socket_fd, response, 
+            sizeof(response));
+                
+		}while(strlen(response) <= 0);
+		fflush(stdout);
+		fprintf(stdout, "Sending END, response : %s\n", response);
         /*do{
             
             send(socket_fd, &end_msg, strlen(end_msg), MSG_NOSIGNAL);
@@ -415,6 +423,7 @@ ct_code (void *param)
         
         }while((strcmp(response, "ACK") < 0));*/
         close(socket_fd);
+		server_status = -1;
     }
     pthread_mutex_unlock(&dispatch_mutex);
     
@@ -433,22 +442,15 @@ ct_wait_server ()
 {
 
   // TP2 TODO: IMPORTANT code non valide.
-  //TODO : deux solutions : 
-  // 1. keep track of num_running threads
-  //  send END to server when num_running = 0  
-  // **need to establish connection with server
 
-  // Probablement mieux!!
-  // 2. keep track of server status
-  // send END in last thread to finish + update server status
-  // no need to reopen a connection here
-
-  while(num_running != 0) {
+  // Wait until server status is "ended"
+  while(server_status != -1) {
     //busy wait
     sleep (4);
   }
-  // Send end request
-  printf("Ending client %d", num_running);
+  //TODO: deallocate everything
+  // Destroy mutex
+  
   // TP2 TODO:END
 
 }
