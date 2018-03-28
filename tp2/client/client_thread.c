@@ -142,6 +142,34 @@ send_request (int client_id, int request_id, int resend, int req_values[],
 
 }
 
+void * ct_code1 (void *param)
+{
+  int socket_fd = -1;
+  client_thread *ct = (client_thread *) param;
+
+  // TP2 TODO
+  // Connection au server.
+  // Create socket
+  socket_fd = socket (AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
+  if (socket_fd < 0) {
+    perror ("ERROR opening socket");
+    exit(1);
+  }
+
+  // Connect
+  struct sockaddr_in serv_addr;
+  memset (&serv_addr, 0, sizeof (serv_addr));
+  serv_addr.sin_family = AF_INET;
+  serv_addr.sin_addr.s_addr = INADDR_ANY;
+  serv_addr.sin_port = htons (port_number);
+  if (connect(socket_fd, (struct sockaddr *) &serv_addr, 
+  sizeof (serv_addr))  < 0) {
+    // wrong way to check for errors with nonblocking sockets...
+    //	perror ("ERROR connecting");
+    //	exit(1);
+  }
+
+}
 
 void *
 ct_code (void *param)
@@ -235,6 +263,8 @@ ct_code (void *param)
     do{
         memset(response, 0, strlen(response));
         if(send(socket_fd, &init, strlen(init), MSG_NOSIGNAL) == -1){
+            fflush(stdout);
+            fprintf(stdout, "Thread %d trying to reconnect\n", ct->id);
             reConnect(socket_fd, (struct sockaddr *) &serv_addr);            
         }
         sleep(1);
@@ -379,7 +409,7 @@ ct_code (void *param)
     }
     pthread_mutex_unlock(&dispatch_mutex);
     
-   close(socket_fd);
+//   close(socket_fd);
     return NULL;
 }
 
