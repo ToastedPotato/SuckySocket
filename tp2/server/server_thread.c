@@ -81,6 +81,7 @@ pthread_mutex_t journal_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 // Helper functions
 void print_resources();
+void print_array(int array[]);
 int getClientIdx(int client_id);
 int isValid (int client_idx, int req[]);
 int isSafe (int client_idx, int req[]);
@@ -165,11 +166,23 @@ st_init ()
 
 //TODO : for debug  purposes
 void print_resources() {
-
+  fflush(stdout);
   char strA[100];
   sprintf(strA,"Available resources:");
   for(int j=0; j < nb_resources; j++) {
     sprintf(strA, "%s %d", strA, available[j]);
+  }
+  sprintf(strA, "%s\n", strA);
+  fprintf(stdout, "%s\n", strA);
+
+}
+//TODO : for debug  purposes
+void print_array(int array[]) {
+  fflush(stdout);
+  char strA[100];
+  sprintf(strA,"Array:");
+  for(int j=0; j < nb_resources; j++) {
+    sprintf(strA, "%s %d", strA, array[j]);
   }
   sprintf(strA, "%s\n", strA);
   fprintf(stdout, "%s\n", strA);
@@ -237,9 +250,13 @@ st_process_requests (server_thread * st, int socket_fd)
       if(idx < 0 || isValid(idx, req) == 0) { // Test request validity
         pthread_mutex_unlock(&critical_mutex);
         printf("Request invalid\n");
-        char *err_msg =  "ERR invalid resources or id\n";
-        send (socket_fd, err_msg, strlen(err_msg), 0);
-
+        if(idx < 0) {
+          char *err_msg =  "ERR invalid id\n";
+       	  send (socket_fd, err_msg, strlen(err_msg), 0);
+        } else {
+          char *err_msg = "ERR invalid resources\n";
+          send (socket_fd, err_msg, strlen(err_msg), 0);
+        }
         // Update journal
         pthread_mutex_lock(&journal_mutex);
         count_invalid++;
@@ -353,8 +370,12 @@ int isValid (int client_idx, int req[]) {
   int *alloc_client = allocated->data[client_idx];
 
   for(int i=0; i < nb_resources; i++) {
-    if(req[i] > max_client[i] - alloc_client[i] || req[i] + alloc_client[i] < 0)
+    if(req[i] > max_client[i] - alloc_client[i] || req[i] + alloc_client[i] < 0){
+    //  fflush(stdout);
+   //   fprintf(stdout, "Req %d > max %d - alloc %d\n", req[i], max_client[i], alloc_client[i]);
+    //  fprintf(stdout, "req %d + alloc %d < 0\n", req[i], alloc_client[i]);
       return 0;
+    }
   }
   return 1;
 }
@@ -371,8 +392,20 @@ int isSafe (int client_idx, int req[]) {
     }
   }
 
-  // Compute need matrix
-  int need[nb_registered_clients][nb_resources];
+  // Compute temp alloc matrix
+  int alloc[nb_registered_clients][nb_resources];
+  for(int i=0; i < nb_registered_clients; i++) {
+    int *alloc_client = allocated->data[i];
+    for(int j=0; j < nb_resources; j++) {
+      if(client_idx == i) {
+        alloc[i][j] = alloc_client[j] + req[j];
+      } else {
+        alloc[i][j] = alloc_client[j];
+      }
+    }
+  }
+  // Compute need matrx
+  /*int need[nb_registered_clients][nb_resources];
   for(int i=0; i < nb_registered_clients; i++) {
     int *max_client = max->data[i];
     int *alloc_client = allocated->data[i];
@@ -383,7 +416,7 @@ int isSafe (int client_idx, int req[]) {
         need[i][j] = max_client[j] - alloc_client[j];
       }
     }
-  }
+  }*/
 
   // Test if new state is safe
   int nb_running = nb_registered_clients;
@@ -391,6 +424,10 @@ int isSafe (int client_idx, int req[]) {
   for(int i=0; i < nb_registered_clients; i++) {
     running[i] = 1;
   }
+  
+ // fprintf(stdout, "Checking safe mode, nb running = %d\n", nb_running);
+  //fprintf(stdout, "Initial new state");
+  //print_array(newstate);
 
   int at_least_one_allocated;
   while(nb_running > 0) {
@@ -398,24 +435,29 @@ int isSafe (int client_idx, int req[]) {
     for(int i=0; i < nb_registered_clients; i++) {
       if(running[i] == 1) {
         int can_finish = 1;
+        int *max_ct = max->data[i];
         for(int j=0; j < nb_resources; j++) {
-          if(newstate[j] - need[i][j] < 0) {
+          if(newstate[j] - (max_ct[j] - alloc[i][j]) < 0) {
             can_finish = 0;
           }
         }
         if(can_finish == 1) {
-          at_least_one_allocated = 1;
+        // fflush(stdout);
+        // fprintf(stdout, "Client %d finished, new new state\n", i);
+         at_least_one_allocated = 1;
           running[i] = 0;
           nb_running--;
-          int *max_ct = max->data[i];
           for(int k=0; k < nb_resources; k++) {
-            newstate[k] += max_ct[k] - need[i][k];
+            newstate[k] = newstate[k] + alloc[i][k];
           }
+         // print_array(newstate); 
         }
       }
     }
     if(at_least_one_allocated == 0) {
-      return 0;
+//     fflush(stdout);
+//     fprintf(stdout, "Unsafe state with %d still running, none allocated\n", nb_running);
+     return 0;
     }
   }
   return 1;
