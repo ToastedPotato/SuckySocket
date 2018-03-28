@@ -64,7 +64,8 @@ unsigned int num_running = 0;
 // qu'il a jusqu'alors accumulées.
 void reConnect (int socket_fd, const struct sockaddr *addr){
     close(socket_fd);
-            
+    fflush(stdout);
+    fprintf(stdout, "Trying to reconnect");
     socket_fd = socket (AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
     if (socket_fd < 0) {
         perror ("ERROR opening socket");
@@ -351,9 +352,12 @@ ct_code (void *param)
 
     // TODO: Send CLO to server
     char clo[10];
-    sprintf(init, "CLO %d\n", ct->id);
+    memset(response, 0, strlen(response));
+    sprintf(clo, "CLO %d\n", ct->id);
     send(socket_fd, &clo, strlen(clo), MSG_NOSIGNAL);
-    
+    sleep(1);
+    recv(socket_fd, response, 49, MSG_WAITALL);
+    fprintf(stdout, "Sending CLO, response : %s", response); 
     pthread_mutex_lock(&dispatch_mutex);
     num_running--;
     count_dispatched++;
@@ -375,7 +379,7 @@ ct_code (void *param)
     }
     pthread_mutex_unlock(&dispatch_mutex);
     
-    close(socket_fd);
+   close(socket_fd);
     return NULL;
 }
 

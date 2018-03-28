@@ -296,7 +296,8 @@ st_process_requests (server_thread * st, int socket_fd)
       pthread_mutex_lock(&critical_mutex);
 
       int idx = getClientIdx(ct_id);
-      printf("Thread %d closed client %d at index %d", st->id, ct_id, idx);
+      fflush(stdout);
+      fprintf(stdout, "Thread %d closed client %d at index %d/n", st->id, ct_id, idx);
 
       if(idx < 0) {
         char *err_msg = "ERR invalid process id\n";
@@ -530,6 +531,9 @@ st_code (void *param)
   // Boucle de traitement des requêtes.
   while (accepting_connections)
   {
+    //TODO:
+    fflush(stdout);
+    fprintf(stdout, "Waiting for client connection\n");
     // Wait for a I/O socket.
     thread_socket_fd = st_wait();
     if (thread_socket_fd < 0)
