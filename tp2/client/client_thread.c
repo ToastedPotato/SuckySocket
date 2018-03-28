@@ -147,13 +147,6 @@ ct_code (void *param)
 {
   int socket_fd = -1;
   client_thread *ct = (client_thread *) param;
-
-  // TP2 TODO
-  // Connection au server.
-  // Vous devez ici faire l'initialisation des petits clients (`INI`).
-  // TP2 TODO:END
-  // Connection au server.
-  // Create socket
   socket_fd = socket (AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
   if (socket_fd < 0) {
     perror ("ERROR opening socket");
@@ -172,10 +165,80 @@ ct_code (void *param)
   //	perror ("ERROR connecting");
   //	exit(1);
     }
+	char beg[50];
+	sprintf(beg, "BEG %d\n", 5);
+	send(socket_fd, beg, strlen(beg), 0);
+	
+	char beg_reply[200];
+	//Wait for reply
+	while(recv(socket_fd, beg_reply, sizeof(beg_reply), 0) < 0) {
+		
+	}
+	fprintf(stdout, "Received reply %s", beg_reply);
+        send(socket_fd, "PRO 1 1 1 1 1\n", sizeof("PRO 1 1 1 1 1"), 0);
+        	
+	char pro_reply[200];
+	//Wait for reply
+	while(recv(socket_fd, pro_reply, sizeof(pro_reply), 0) < 0) {
+		
+	}
+	fprintf(stdout, "Received reply %s", pro_reply);
+  socket_fd = socket (AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
+  if (socket_fd < 0) {
+    perror ("ERROR opening socket");
+    exit(1);
+  }
+
+  // Connect
+  memset (&serv_addr, 0, sizeof (serv_addr));
+  serv_addr.sin_family = AF_INET;
+  serv_addr.sin_addr.s_addr = INADDR_ANY;
+  serv_addr.sin_port = htons (port_number);
+  if (connect(socket_fd, (struct sockaddr *) &serv_addr, 
+  sizeof (serv_addr))  < 0) {
+  // wrong way to check for errors with nonblocking sockets...
+  //	perror ("ERROR connecting");
+  //	exit(1);
+    }
+	char init[50];
+	sprintf(init, "INI %d 0 0 0 0 0\n", ct->id);
+	send(socket_fd, init, strlen(init), 0);
+	
+	char init_reply[200];
+	//Wait for reply
+	while(recv(socket_fd, init_reply, sizeof(init_reply), 0) < 0) {
+		
+	}
+	fprintf(stdout, "Received reply %s", init_reply);
+
+  // TP2 TODO
+  // Connection au server.
+  // Vous devez ici faire l'initialisation des petits clients (`INI`).
+  // TP2 TODO:END
+  // Connection au server.
+  // Create socket
 	
   for (unsigned int request_id = 0; request_id < num_request_per_client;
       request_id++)
   {
+  socket_fd = socket (AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
+  if (socket_fd < 0) {
+   perror ("ERROR opening socket");
+   exit(1);
+ }
+
+  // Connect
+  struct sockaddr_in serv_addr;
+  memset (&serv_addr, 0, sizeof (serv_addr));
+  serv_addr.sin_family = AF_INET;
+  serv_addr.sin_addr.s_addr = INADDR_ANY;
+  serv_addr.sin_port = htons (port_number);
+  if (connect(socket_fd, (struct sockaddr *) &serv_addr, 
+  sizeof (serv_addr))  < 0) {
+  // wrong way to check for errors with nonblocking sockets...
+  //	perror ("ERROR connecting");
+  //	exit(1);
+    }
 
     // TP2 TODO
     // Vous devez ici coder, conjointement avec le corps de send request,
@@ -185,7 +248,7 @@ ct_code (void *param)
 	
     //Send request
 	char req[50];
-	sprintf(req, "REQ %d 0 0 0 0 0/n", client_id);
+	sprintf(req, "REQ %d 0 0 0 0 0\n", ct->id);
 	send(socket_fd, req, strlen(req), 0);
 	
 	char server_reply[200];
@@ -194,6 +257,7 @@ ct_code (void *param)
 		
 	}
 	fprintf(stdout, "Received reply %s", server_reply);
+    close(socket_fd);
     // TP2 TODO:END
 
     /* Attendre un petit peu (0s-0.1s) pour simuler le calcul.  */
