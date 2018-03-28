@@ -196,17 +196,15 @@ st_process_requests (server_thread * st, int socket_fd)
   FILE *socket_r = fdopen (socket_fd, "r");
   FILE *socket_w = fdopen (socket_fd, "w");
 
-  while (true)
-  {
     char cmd[4] = {NUL, NUL, NUL, NUL};
     if (!fread (cmd, 3, 1, socket_r))
-      break;
+      return;
     char *args = NULL; size_t args_len = 0;
     ssize_t cnt = getline (&args, &args_len, socket_r);
     if (!args || cnt < 1 || args[cnt - 1] != '\n')
     {
       printf ("Thread %d received incomplete cmd=%s!\n", st->id, cmd);
-      break;
+      return;
     }
 
     printf ("Thread %d received the command: %s%s\n", st->id, cmd, args);
@@ -349,7 +347,6 @@ st_process_requests (server_thread * st, int socket_fd)
       send (socket_fd, err_msg, strlen(err_msg), 0);
     }
     free (args);
-  }
 
   fclose (socket_r);
   fclose (socket_w);
@@ -405,19 +402,6 @@ int isSafe (int client_idx, int req[]) {
       }
     }
   }
-  // Compute need matrx
-  /*int need[nb_registered_clients][nb_resources];
-  for(int i=0; i < nb_registered_clients; i++) {
-    int *max_client = max->data[i];
-    int *alloc_client = allocated->data[i];
-    for(int j=0; j < nb_resources; j++) {
-      if(client_idx == j) {
-        need[i][j] = max_client[j] - (alloc_client[j] + req[j]);
-      } else {
-        need[i][j] = max_client[j] - alloc_client[j];
-      }
-    }
-  }*/
 
   // Test if new state is safe
   int nb_running = nb_registered_clients;
@@ -462,35 +446,6 @@ int isSafe (int client_idx, int req[]) {
     }
   }
   return 1;
-
-    // TODO : remove 
-    // 1. Let work and finish vectors of m and n length
-   // int work[nb_resources];
-   // for(int i=0; i < nb_resources; i++) {
-    //  work[i] = available[i];
-   // }
-   // int finish[nb_registered_clients];
-   // for(int j=0; j < nb_registered_clients; j++) {
-     // finish[j] = 0;
-   // }
-
-   // int safe = 0;
-    // 2. find i such that finish[i] = false & need[i][] <= work
-    // need = ???
-    // if !E, go to 4.
-   // for(int i=0; i < nb_registered_clients; i++) {
-     // if(finish[i] == 0) {
-
-    //  }
-   // }
-
-    // 3. if E, work = work + allocated[i][]
-    // finish[i] = true
-    // go to 2.
-
-    // 4. if finish=true for all i
-    // safe = 1;
- // return safe;
 }
 
 

@@ -55,13 +55,29 @@ pthread_mutex_t server_setup = PTHREAD_MUTEX_INITIALIZER;
 
 unsigned int num_running = 0;
 
+int ct_connect (){
+      // Create socket
+    int socket_fd = socket (AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
+    if (socket_fd < 0) {
+    perror ("ERROR opening socket");
+    exit(1);
+    }
 
-// Vous devez modifier cette fonction pour faire l'envoie des requêtes
-// Les ressources demandées par la requête doivent être choisies aléatoirement
-// (sans dépasser le maximum pour le client). Elles peuvent être positives
-// ou négatives.
-// Assurez-vous que la dernière requête d'un client libère toute les ressources
-// qu'il a jusqu'alors accumulées.
+    // Connect
+    struct sockaddr_in serv_addr;
+    memset (&serv_addr, 0, sizeof (serv_addr));
+    serv_addr.sin_family = AF_INET;
+    serv_addr.sin_addr.s_addr = INADDR_ANY;
+    serv_addr.sin_port = htons (port_number);
+    if (connect(socket_fd, (struct sockaddr *) &serv_addr, 
+    sizeof (serv_addr))  < 0) {
+    // wrong way to check for errors with nonblocking sockets...
+    //	perror ("ERROR connecting");
+    //	exit(1);
+    }
+  return socket_fd;
+}
+
 void reConnect (int socket_fd, const struct sockaddr *addr){
     close(socket_fd);
     fflush(stdout);
@@ -87,6 +103,12 @@ void get_response(int socket_fd, char *buffer, int bufsize){
     }else{memset(buffer, 0, strlen(buffer));}
 }
 
+// Vous devez modifier cette fonction pour faire l'envoie des requêtes
+// Les ressources demandées par la requête doivent être choisies aléatoirement
+// (sans dépasser le maximum pour le client). Elles peuvent être positives
+// ou négatives.
+// Assurez-vous que la dernière requête d'un client libère toute les ressources
+// qu'il a jusqu'alors accumulées.
 void
 send_request (int client_id, int request_id, int resend, int req_values[], 
     int max[], int held[], int socket_fd, const struct sockaddr *addr)
@@ -138,10 +160,10 @@ send_request (int client_id, int request_id, int resend, int req_values[],
             sprintf(req, "%s\n", req);
         }
     }
-    
-    while(send(socket_fd, &req, strlen(req), MSG_NOSIGNAL) == -1){
+    send(socket_fd, &req, strlen(req), 0);
+    /*while(send(socket_fd, &req, strlen(req), MSG_NOSIGNAL) == -1){
         reConnect(socket_fd, (struct sockaddr *) &addr);            
-    }
+    }*/
     fprintf (stdout, "Client %d is sending request #%d\n", client_id,
             (request_id + 1));
     
@@ -161,41 +183,28 @@ ct_code (void *param)
     client_thread *ct = (client_thread *) param;
 
     // TP2 TODO
-    // Connection au server.
-    // Create socket
-    socket_fd = socket (AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
-    if (socket_fd < 0) {
-    perror ("ERROR opening socket");
-    exit(1);
-    }
-
-    // Connect
-    struct sockaddr_in serv_addr;
-    memset (&serv_addr, 0, sizeof (serv_addr));
-    serv_addr.sin_family = AF_INET;
-    serv_addr.sin_addr.s_addr = INADDR_ANY;
-    serv_addr.sin_port = htons (port_number);
-    if (connect(socket_fd, (struct sockaddr *) &serv_addr, 
-    sizeof (serv_addr))  < 0) {
-    // wrong way to check for errors with nonblocking sockets...
-    //	perror ("ERROR connecting");
-    //	exit(1);
-    }
            
     // Initialize server
     pthread_mutex_lock(&server_setup);
     if(!server_ready){
         
-        char server_response[50];
-                                         
+		// Connection au server
+		socket_fd = ct_connect();
+                        
         char beg[80];
         sprintf(beg, "BEG %d\n", num_resources);
-        
-        do{
+		send(socket_fd, &beg, strlen(beg), 0);
+		
+		char init_response[50]; 
+		while(recv(socket_fd, init_response, sizeof(init_response), 0) < 0) {
+			
+		}
+		fprintf(stdout, "Response : %s\n", init_response);
+        /*do{
             send(socket_fd, &beg, strlen(beg), MSG_NOSIGNAL);
             sleep(1);
-            get_response(socket_fd, server_response, sizeof(server_response));
-        }while((strcmp(server_response, "ACK") < 0));
+            get_response(socket_fd, init_response, sizeof(init_response));
+        }while((strcmp(init_response, "ACK") < 0));*/
                                
         char pro[80];
         sprintf(pro,"PRO");
@@ -203,25 +212,33 @@ ct_code (void *param)
             sprintf(pro, "%s %d", pro, provisioned_resources[j]);
         }
         sprintf(pro, "%s\n", pro);
-        
-        do{
+        send(socket_fd, &pro, strlen(pro), 0);
+		
+		char init_response[50]; 
+		while(recv(socket_fd, init_response, sizeof(init_response), 0) < 0) {
+			
+		}
+		fprintf(stdout, "Response : %s\n", init_response);
+        /*do{
             send(socket_fd, &pro, strlen(pro), MSG_NOSIGNAL);
             sleep(1);
-            get_response(socket_fd, server_response, sizeof(server_response));
-        }while((strcmp(server_response, "ACK") < 0));
+            get_response(socket_fd, init_response, sizeof(init_response));
+        }while((strcmp(init_response, "ACK") < 0));*/
                         
         server_ready = 1;
         
-    }else{fprintf(stdout, "Server ready for requests\n");}
-    pthread_mutex_unlock(&server_setup);       
+    }else{fprintf(stdout, "Server ready for requests\n");
+    pthread_mutex_unlock(&server_setup);     
+	
     // Initialize client thread
-            
-    char response[50];
+    // Vous devez ici faire l'initialisation des petits clients (`INI`).
+	
+	// Connection au server
+    socket_fd = ct_connect();
     
-    char init[80];
-    int max_resources[num_resources];
+    int max_resources[num_resources];	
+	char init[80];
     sprintf(init, "INI %d", ct->id);
-
     srand((unsigned int)time(NULL) + ct->pt_tid);  
 
     for(int i=0; i < num_resources; i++) {
@@ -231,7 +248,14 @@ ct_code (void *param)
     }
     sprintf(init, "%s\n", init);
     
-    do{
+	send(socket_fd, &init, strlen(init), 0);
+	
+    char response[50];
+	while(recv(socket_fd, response, sizeof(response), 0) < 0) {
+			
+    }
+	fprintf(stdout, "Response : %s\n", response);
+    /*do{
 
         if(send(socket_fd, &init, strlen(init), MSG_NOSIGNAL) == -1){
             reConnect(socket_fd, (struct sockaddr *) &serv_addr);            
@@ -239,22 +263,20 @@ ct_code (void *param)
         sleep(1);
         get_response(socket_fd, response, sizeof(response));
         
-    }while((strcmp(response, "ACK") < 0));
+    }while((strcmp(response, "ACK") < 0));*/
     
-    // Vous devez ici faire l'initialisation des petits clients (`INI`).
-    // TP2 TODO:END
-    
-    //les resources allouées au client
+    //Ressources allouées au client
     int held[num_resources];
     for (int i = 0; i < num_resources; i++){
         held[i] = 0;    
     }    
-    //valeurs de la requête la plus récente
-    int requested[num_resources];
-        
+    //Valeurs de la requête la plus récente
+    int requested[num_resources]; 
     for(int i = 0; i < num_resources; i++){
         requested[i] = 0;
     }
+	
+	// TP2 TODO:END
     
     for (unsigned int request_id = 0; request_id < num_request_per_client;
       request_id++)
@@ -264,42 +286,42 @@ ct_code (void *param)
         // Vous devez ici coder, conjointement avec le corps de send request,
         // le protocole d'envoi de requête.
                
-        
         int request_outcome = 0;
-        
         int wait_time = 0;
-        
         int resend = 0;
 
         while (request_outcome != 1) {
-                        
-            //envoi de la requête                
+            // Connection au server
+			socket_fd = ct_connect();
+			
+            // Envoi de la requête                
             send_request (ct->id, request_id, resend, requested, max_resources, 
                 held, socket_fd, (struct sockaddr *) &serv_addr);
             
-            //après le renvoi d'une requête suite à un wait
+            // Après le renvoi d'une requête suite à un wait
             resend = 0;
                         
-            //pour l'instant, j'assumes que les réponses du serveur < 50 char
+            //pour l'instant, j'assume que les réponses du serveur < 50 char
             char server_response[50];
-                        
-            do{
+            while(recv(socket_fd, response, sizeof(response), 0) < 0) {
+			
+            }
+	        fprintf(stdout, "Response : %s\n", response); 
+			
+            /*do{
                 sleep(1);
                 
                 get_response(socket_fd, server_response, 
                     sizeof(server_response));
                 
-            }while(strlen(server_response) <= 0);
+            }while(strlen(server_response) <= 0);*/
                         
             if(strstr(server_response, "ACK") != NULL){
                 
-                request_outcome = 1;
-                
+                request_outcome = 1;                
                 //mise à jour des ressources tenues car succès de la requête
-                for (int i = 0; i < num_resources; i++){
-                    
-                    held[i] = held[i] + requested[i];
-                                           
+                for (int i = 0; i < num_resources; i++){  
+                    held[i] = held[i] + requested[i];             
                 }
                 
                 pthread_mutex_lock(&ack_mutex);
@@ -338,31 +360,47 @@ ct_code (void *param)
     }
 
     // TODO: Send CLO to server
+	// Connection au server
+	socket_fd = ct_connect();
+			
     char clo[10];
-    memset(response, 0, strlen(response));
     sprintf(clo, "CLO %d\n", ct->id);
-    send(socket_fd, &clo, strlen(clo), MSG_NOSIGNAL);
-    sleep(1);
-    recv(socket_fd, response, 49, MSG_WAITALL);
+	send(socket_fd, &clo, strlen(clo), 0);
+    //send(socket_fd, &clo, strlen(clo), MSG_NOSIGNAL);
+	
+    //sleep(1);
+	memset(response, 0, strlen(response));
+	while(recv(socket_fd, response, sizeof(response), 0) < 0) {
+			
+    }
+    //recv(socket_fd, response, 49, MSG_WAITALL);
     fprintf(stdout, "Sending CLO, response : %s", response); 
+	
     pthread_mutex_lock(&dispatch_mutex);
     num_running--;
-    count_dispatched++;
+	// End server
     if(num_running == 0){
-        char *end_msg = "END\n";
-        
-        do{
+        socket_fd = ct_connect();
+			
+		char *end_msg = "END\n";
+        send(socket_fd, &end_msg, strlen(end_msg), 0);
+		memset(response, 0, strlen(response));
+		while(recv(socket_fd, response, sizeof(response), 0) < 0) {
+			
+		}
+		fprintf(stdout, "Sending END, response : %s", response);
+        /*do{
             
             send(socket_fd, &end_msg, strlen(end_msg), MSG_NOSIGNAL);
             sleep(1);
             get_response(socket_fd, response, sizeof(response));
         
-        }while((strcmp(response, "ACK") < 0));
+        }while((strcmp(response, "ACK") < 0));*/
         
     }
     pthread_mutex_unlock(&dispatch_mutex);
     
-   close(socket_fd);
+    close(socket_fd);
     return NULL;
 }
 
