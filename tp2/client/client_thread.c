@@ -55,7 +55,6 @@ pthread_mutex_t server_setup = PTHREAD_MUTEX_INITIALIZER;
 
 unsigned int num_running = 0;
 
-pthread_mutex_t running_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 // Vous devez modifier cette fonction pour faire l'envoie des requêtes
 // Les ressources demandées par la requête doivent être choisies aléatoirement
@@ -286,10 +285,7 @@ ct_code (void *param)
                 }else{memset(server_response, 0, strlen(server_response));}
                 
             }while(result <= 0);
-            
-            
-            fprintf(stdout, "%s\n", server_response);
-            
+                        
             if(strcmp(server_response, "ACK") == 0){
                 
                 request_outcome = 1;
@@ -341,9 +337,26 @@ ct_code (void *param)
     sprintf(init, "CLO %d\n", ct->id);
     send(socket_fd, &clo, strlen(clo), MSG_NOSIGNAL);
     
-    pthread_mutex_lock(&running_mutex);
+    pthread_mutex_lock(&dispatch_mutex);
     num_running--;
-    pthread_mutex_unlock(&running_mutex);
+    count_dispatched++;
+    if(num_running == 0){
+        char *end_msg = "END\n";
+        
+        do{
+            memset(response, 0, strlen(response));
+            send(socket_fd, &end_msg, strlen(end_msg), MSG_NOSIGNAL);
+            sleep(1);
+            recv(socket_fd, response, 49, MSG_WAITALL);
+            
+            if(strchr(response, '\n') != NULL){
+                response[response - strchr(response, '\n')] = '\0';
+            }else{memset(response, 0, strlen(response));}
+        
+        }while((strcmp(response, "ACK") < 0));
+        
+    }
+    pthread_mutex_unlock(&dispatch_mutex);
     
     close(socket_fd);
     return NULL;
