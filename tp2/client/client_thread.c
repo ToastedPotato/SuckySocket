@@ -182,6 +182,12 @@ ct_code (void *param)
     int socket_fd = -1;
     client_thread *ct = (client_thread *) param;
 
+    // TODO : to remove
+    struct sockaddr_in serv_addr;
+    memset (&serv_addr, 0, sizeof (serv_addr));
+    serv_addr.sin_family = AF_INET;
+    serv_addr.sin_addr.s_addr = INADDR_ANY;
+    serv_addr.sin_port = htons (port_number);
     // TP2 TODO
            
     // Initialize server
@@ -199,7 +205,7 @@ ct_code (void *param)
 		while(recv(socket_fd, init_response, sizeof(init_response), 0) < 0) {
 			
 		}
-		fprintf(stdout, "Response : %s\n", init_response);
+		fprintf(stdout, "Response : %s\n", strtok(init_response, "\n"));
         /*do{
             send(socket_fd, &beg, strlen(beg), MSG_NOSIGNAL);
             sleep(1);
@@ -214,7 +220,7 @@ ct_code (void *param)
         sprintf(pro, "%s\n", pro);
         send(socket_fd, &pro, strlen(pro), 0);
 		
-		char init_response[50]; 
+	
 		while(recv(socket_fd, init_response, sizeof(init_response), 0) < 0) {
 			
 		}
@@ -227,7 +233,7 @@ ct_code (void *param)
                         
         server_ready = 1;
         
-    }else{fprintf(stdout, "Server ready for requests\n");
+    }else{fprintf(stdout, "Server ready for requests\n");}
     pthread_mutex_unlock(&server_setup);     
 	
     // Initialize client thread
@@ -347,7 +353,7 @@ ct_code (void *param)
                 pthread_mutex_unlock(&err_mutex);
             }
         }
-        
+        close(socket_fd);
         
         // TP2 TODO:END
 
