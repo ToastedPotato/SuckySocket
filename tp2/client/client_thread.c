@@ -202,10 +202,15 @@ ct_code (void *param)
 		send(socket_fd, &beg, strlen(beg), 0);
 		
 		char init_response[50]; 
-		while(recv(socket_fd, init_response, sizeof(init_response), 0) < 0) {
-			
-		}
-		fprintf(stdout, "Response : %s\n", strtok(init_response, "\n"));
+		do{
+        sleep(1);
+                
+			get_response(socket_fd, init_response, 
+            sizeof(init_response));
+                
+		}while(strlen(init_response) <= 0);
+		fprintf(stdout, "Response : %s\n", init_response);
+
         /*do{
             send(socket_fd, &beg, strlen(beg), MSG_NOSIGNAL);
             sleep(1);
@@ -220,11 +225,15 @@ ct_code (void *param)
         sprintf(pro, "%s\n", pro);
         send(socket_fd, &pro, strlen(pro), 0);
 		
-	
-		while(recv(socket_fd, init_response, sizeof(init_response), 0) < 0) {
-			
-		}
+		do{
+        sleep(1);
+                
+			get_response(socket_fd, init_response, 
+            sizeof(init_response));
+                
+		}while(strlen(init_response) <= 0);
 		fprintf(stdout, "Response : %s\n", init_response);
+		
         /*do{
             send(socket_fd, &pro, strlen(pro), MSG_NOSIGNAL);
             sleep(1);
@@ -257,10 +266,14 @@ ct_code (void *param)
 	send(socket_fd, &init, strlen(init), 0);
 	
     char response[50];
-	while(recv(socket_fd, response, sizeof(response), 0) < 0) {
-			
-    }
-	fprintf(stdout, "Response : %s\n", response);
+	do{
+        sleep(1);
+                
+        get_response(socket_fd, response, 
+            sizeof(response));
+                
+    }while(strlen(response) <= 0);
+    fprintf(stdout, "Response : %s\n", response);
 	close(socket_fd);
     /*do{
 
@@ -310,19 +323,15 @@ ct_code (void *param)
                         
             //pour l'instant, j'assume que les réponses du serveur < 50 char
             char server_response[50];
-            while(recv(socket_fd, response, sizeof(response), 0) < 0) {
-			
-            }
-	        fprintf(stdout, "Response : %s\n", response); 
-			
-            /*do{
+            do{
                 sleep(1);
                 
                 get_response(socket_fd, server_response, 
                     sizeof(server_response));
                 
-            }while(strlen(server_response) <= 0);*/
-                        
+            }while(strlen(server_response) <= 0);
+            fprintf(stdout, "Response : %s\n", server_response);   
+			
             if(strstr(server_response, "ACK") != NULL){
                 
                 request_outcome = 1;                
