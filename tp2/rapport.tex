@@ -6,12 +6,27 @@
 \usepackage[french]{babel}
 
 \title{Travail pratique \#2 - IFT-2245}
-\author{Moi et L'autre} 
+\author{Christophe Apollon-Roy (920403) \\et \\Amélie Lacombe Robillard (20016735)} 
 \begin{document}
 
 \maketitle
-
-allo comment ça va?
-%% ¡¡ REMPLIR ICI !!
+\section*{Introduction}
+\setlength{\parindent}{20pt}
+Pour ce travail pratique, nous avons dû simuler la communication TCP/IP entre un serveur et des clients dans le but de gérer l'allocation de 
+ressources (fictives) aux clients par le serveur. Pour réaliser cela, nous avons, en se basant sur le code fourni, écrit des programmes client et 
+serveur s'échangeant de l'information sous la forme de courts messages par le biais de sockets. Le rapport qui suit décrira les problèmes 
+rencontrés et les solutions implémentées pour les contourner en examinant le problème de famine inhérent à certaines implémentations possibles du 
+programme puis en allant plus en détail dans l'implémentation finale de notre client et serveur.
+\\
+\section*{Problème de famine}
+\setlength{\parindent}{20pt}
+Un problème particulièrement épineux devant être géré par tout algorithme d'ordonnancement digne de ce nom. Cette situation survient lorsque, pour 
+une raison quelconque, un processus est en quelque sorte "négligé" par le système responsable de l'ordonnancement; le programme en question passe 
+un temps significatif sans recevoir les ressources dont il a besoin pour son exécution. Lors des premières itérations de notre système où le 
+serveur gardait ouverte sa connection au client tant que celui-ci envoyait des requêtes, ceci survenait assez souvent dès que le nombre de threads 
+clients surpassait le nombre de threads serveurs disponibles. En effet, le premier thread client se connectant à un thread serveur avait le loisir 
+de monopoliser le temps de celui-ci tant qu'il avait des requêtes à lui envoyer, laissant les threads clients trop lents à se connecter dans un 
+état de famine. 
+ 
 
 \end{document}
