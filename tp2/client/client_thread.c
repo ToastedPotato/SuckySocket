@@ -360,7 +360,7 @@ ct_code (void *param)
                 strtok(server_response, " ");
                 char *token =  (strtok(NULL, ""));
                 wait_time = atoi(token);
-                sleep(wait_time);
+                usleep(wait_time * 100000);
                 resend = 1;
                 
                 pthread_mutex_lock(&req_wait_mutex);

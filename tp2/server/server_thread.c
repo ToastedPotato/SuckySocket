@@ -56,7 +56,7 @@ unsigned int clients_ended = 0;
 const char *acknowledged = "ACK\n";
 
 // Client thread waiting time
-int wait_time = 5;
+int wait_time = 2;
 
 // Number of resources
 int nb_resources;
