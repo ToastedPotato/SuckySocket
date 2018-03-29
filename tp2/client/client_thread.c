@@ -11,6 +11,7 @@
 // Socket library
 //#include <netdb.h>
 
+#include <errno.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
@@ -23,6 +24,9 @@ int *provisioned_resources = NULL;
 // Variable d'initialisation des threads clients.
 unsigned int count = 0;
 
+//message de terminaison de l'exécution du serveur 
+const char *end_msg = "END\n";
+        
 // Variable du journal.
 // Nombre de requête acceptée (ACK reçus en réponse à REQ)
 unsigned int count_accepted = 0;
@@ -72,8 +76,8 @@ int ct_connect (){
     if (connect(socket_fd, (struct sockaddr *) &serv_addr, 
     sizeof (serv_addr))  < 0) {
     // wrong way to check for errors with nonblocking sockets...
-    //	perror ("ERROR connecting");
-    //	exit(1);
+    	fprintf (stdout, "%s", strerror(errno));
+    	exit(1);
     }
   return socket_fd;
 }
@@ -221,13 +225,9 @@ ct_code (void *param)
                 
 		}while(strlen(init_response) <= 0);
 		fprintf(stdout, "Response : %s\n", init_response);
-
-        /*do{
-            send(socket_fd, &beg, strlen(beg), MSG_NOSIGNAL);
-            sleep(1);
-            get_response(socket_fd, init_response, sizeof(init_response));
-        }while((strcmp(init_response, "ACK") < 0));*/
-                               
+        
+        if(strstr(init_response, "ERR") != NULL){exit(1);}
+                              
         char pro[80];
         sprintf(pro,"PRO");
         for(int j=0; j < num_resources; j++) {
@@ -245,11 +245,8 @@ ct_code (void *param)
 		}while(strlen(init_response) <= 0);
 		fprintf(stdout, "Response : %s\n", init_response);
 		
-        /*do{
-            send(socket_fd, &pro, strlen(pro), MSG_NOSIGNAL);
-            sleep(1);
-            get_response(socket_fd, init_response, sizeof(init_response));
-        }while((strcmp(init_response, "ACK") < 0));*/
+        if(strstr(init_response, "ERR") != NULL){exit(1);}
+        
         close(socket_fd);      
         server_status = 1;
         
@@ -286,16 +283,7 @@ ct_code (void *param)
     }while(strlen(response) <= 0);
     fprintf(stdout, "Response : %s\n", response);
 	close(socket_fd);
-    /*do{
-
-        if(send(socket_fd, &init, strlen(init), MSG_NOSIGNAL) == -1){
-            reConnect(socket_fd);            
-        }
-        sleep(1);
-        get_response(socket_fd, response, sizeof(response));
         
-    }while((strcmp(response, "ACK") < 0));*/
-    
     //Ressources allouées au client
     int held[num_resources];
     for (int i = 0; i < num_resources; i++){
@@ -420,7 +408,6 @@ ct_code (void *param)
     if(num_running == 0){
         socket_fd = ct_connect();
         fprintf(stdout, "Sending end\n");			
-	char end_msg[] = "END\n";
         send(socket_fd, end_msg, strlen(end_msg), 0);
 		do{
         //sleep(1);
@@ -430,13 +417,7 @@ ct_code (void *param)
         }while(strlen(response) <= 0);
 	fflush(stdout);
 	fprintf(stdout, "Sending END, response : %s\n", response);
-        /*do{
-            
-            send(socket_fd, &end_msg, strlen(end_msg), MSG_NOSIGNAL);
-            sleep(1);
-            get_response(socket_fd, response, sizeof(response));
         
-        }while((strcmp(response, "ACK") < 0));*/
         close(socket_fd);
 		server_status = -1;
     }
@@ -456,18 +437,24 @@ void
 ct_wait_server ()
 {
 
-  // TP2 TODO: IMPORTANT code non valide.
+    // TP2 TODO: IMPORTANT code non valide.
 
     
-  // Wait until server status is "ended"
-  while(server_status != -1) {
-    //busy wait
-    sleep (4);
-  }
-  //TODO: deallocate everything
-  // Destroy mutex
+    // Wait until server status is "ended"
+    while(server_status != -1) {
+        //busy wait
+        sleep (4);
+    }
+    //TODO: deallocate everything
+    //destruction des mutex à la fin de l'exécution car ils ne sont plus requis
+    pthread_mutex_destroy(&ack_mutex);
+    pthread_mutex_destroy(&req_wait_mutex);
+    pthread_mutex_destroy(&err_mutex);
+    pthread_mutex_destroy(&dispatch_mutex);
+    pthread_mutex_destroy(&sent_mutex);
+    pthread_mutex_destroy(&server_setup);
   
-  // TP2 TODO:END
+    // TP2 TODO:END
 
 }
 
