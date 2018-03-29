@@ -62,7 +62,7 @@ unsigned int num_running = 0;
 // ou négatives.
 // Assurez-vous que la dernière requête d'un client libère toute les ressources
 // qu'il a jusqu'alors accumulées.
-void reConnect (int socket_fd, const struct sockaddr *addr){
+void reConnect (int socket_fd){
     close(socket_fd);
     fflush(stdout);
     fprintf(stdout, "Trying to reconnect\n");
@@ -72,8 +72,14 @@ void reConnect (int socket_fd, const struct sockaddr *addr){
         exit(1);
     }   
     
-    connect(socket_fd, (struct sockaddr *) &addr, 
-        sizeof (addr));
+    struct sockaddr_in serv_addr;
+    memset (&serv_addr, 0, sizeof (serv_addr));
+    serv_addr.sin_family = AF_INET;
+    serv_addr.sin_addr.s_addr = INADDR_ANY;
+    serv_addr.sin_port = htons (port_number);
+    
+    connect(socket_fd, (struct sockaddr *) &serv_addr, 
+        sizeof (serv_addr));
 }
 
 void get_response(int socket_fd, char *buffer, int bufsize){
@@ -140,7 +146,7 @@ send_request (int client_id, int request_id, int resend, int req_values[],
     }
     
     while(send(socket_fd, &req, strlen(req), MSG_NOSIGNAL) == -1){
-        reConnect(socket_fd, (struct sockaddr *) &addr);            
+        reConnect(socket_fd);            
     }
     fprintf (stdout, "Client %d is sending request #%d\n", client_id,
             (request_id + 1));
@@ -234,7 +240,7 @@ ct_code (void *param)
     do{
 
         if(send(socket_fd, &init, strlen(init), MSG_NOSIGNAL) == -1){
-            reConnect(socket_fd, (struct sockaddr *) &serv_addr);            
+            reConnect(socket_fd);            
         }
         sleep(1);
         get_response(socket_fd, response, sizeof(response));
@@ -348,21 +354,9 @@ ct_code (void *param)
     pthread_mutex_lock(&dispatch_mutex);
     num_running--;
     count_dispatched++;
-    if(num_running == 0){
-        char *end_msg = "END\n";
-        
-        do{
-            
-            send(socket_fd, &end_msg, strlen(end_msg), MSG_NOSIGNAL);
-            sleep(1);
-            get_response(socket_fd, response, sizeof(response));
-        
-        }while((strcmp(response, "ACK") < 0));
-        
-    }
     pthread_mutex_unlock(&dispatch_mutex);
     
-   close(socket_fd);
+    close(socket_fd);
     return NULL;
 }
 
@@ -388,10 +382,50 @@ ct_wait_server ()
   // send END in last thread to finish + update server status
   // no need to reopen a connection here
 
-  while(num_running != 0) {
-    //busy wait
-    sleep (4);
-  }
+    while((count != count_dispatched)) {
+    //busy wait tant que tous les clients ne sont pas terminés
+        sleep (4);
+    }
+
+    int socket_fd = -1;
+    
+    // TP2 TODO
+    // Connection au server.
+    // Create socket
+    socket_fd = socket (AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
+    if (socket_fd < 0) {
+    perror ("ERROR opening socket");
+    exit(1);
+    }
+    
+    //destruction des mutex à la fin de l'exécution car ils ne sont plus requis
+    pthread_mutex_destory(&ack_mutex);
+    pthread_mutex_destory(&req_wait_mutex);
+    pthread_mutex_destory(&err_mutex);
+    pthread_mutex_destory(&dispatch_mutex);
+    pthread_mutex_destory(&sent_mutex);
+    pthread_mutex_destory(&server_setup);
+    
+    // Connect
+    struct sockaddr_in serv_addr;
+    memset (&serv_addr, 0, sizeof (serv_addr));
+    serv_addr.sin_family = AF_INET;
+    serv_addr.sin_addr.s_addr = INADDR_ANY;
+    serv_addr.sin_port = htons (port_number);
+    connect(socket_fd, (struct sockaddr *) &serv_addr, sizeof (serv_addr));
+    
+    //envoi du message de fin d'exécution du serveur
+    char *end_msg = "END\n";
+    
+    do{
+        
+        send(socket_fd, &end_msg, strlen(end_msg), MSG_NOSIGNAL);
+        sleep(1);
+        get_response(socket_fd, response, sizeof(response));
+    
+    }while((strstr(response, "ACK") != NULL));
+        
+    
   // Send end request
   printf("Ending client %d", num_running);
   // TP2 TODO:END
