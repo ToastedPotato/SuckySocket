@@ -140,7 +140,7 @@ send_request (int client_id, int request_id, int resend, int req_values[],
                 do{
                     
                    value = (rand() % ((max[j]+1)*2))-(max[j]+1);
-                }while(value < (held[j] * -1) && value < 0);
+                }while(value < (held[j] * -1) || value > max[j]-held[j]);
                 
                 sprintf(req, "%s %d", req, value);
                 req_values[j] = value;
