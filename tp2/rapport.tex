@@ -22,11 +22,11 @@ programme puis en allant plus en détail dans l'implémentation finale de notre 
 \setlength{\parindent}{20pt}
 Un problème particulièrement épineux devant être géré par tout algorithme d'ordonnancement digne de ce nom. Cette situation survient lorsque, pour 
 une raison quelconque, un processus est en quelque sorte "négligé" par le système responsable de l'ordonnancement; le programme en question passe 
-un temps significatif sans recevoir les ressources dont il a besoin pour son exécution. Lors des premières itérations de notre système où le 
-serveur gardait ouverte sa connection au client tant que celui-ci envoyait des requêtes, ceci survenait assez souvent dès que le nombre de threads 
-clients surpassait le nombre de threads serveurs disponibles. En effet, le premier thread client se connectant à un thread serveur avait le loisir 
-de monopoliser le temps de celui-ci tant qu'il avait des requêtes à lui envoyer, laissant les threads clients trop lents à se connecter dans un 
-état de famine. 
+un temps significatif sans recevoir les ressources dont il a besoin pour son exécution. Lors des premières itérations de notre système, le 
+serveur gardait ouverte sa connection au client tant que celui-ci envoyait des requêtes, contribuant ainsi à l'occurence fréquente de cette 
+situation dès que le nombre de threads clients surpassait le nombre de threads serveurs disponibles. En effet, le premier thread client se 
+connectant à un thread serveur avait le loisir de monopoliser le temps de celui-ci tant qu'il avait des requêtes à lui envoyer, laissant les 
+threads clients trop lents à se connecter dans un état de famine. 
  
 
 \end{document}
