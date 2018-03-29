@@ -330,7 +330,7 @@ st_process_requests (server_thread * st, int socket_fd)
 		  int *max_cli = max->data[idx];
 		  free(max_cli);
 		  max->data[idx] = NULL;
-		  client_ids[idx] = NULL;
+		  client_ids->data[idx] = -1;
           pthread_mutex_unlock(&critical_mutex);
           send (socket_fd, acknowledged, strlen(acknowledged), 0);
 
