@@ -73,6 +73,8 @@ int *available;
 // Client ids by index
 struct array_t *client_ids;
 
+int clients_running;
+
 // Mutex pour l'acces aux sections critiques et donnes partagees
 pthread_mutex_t critical_mutex = PTHREAD_MUTEX_INITIALIZER;
 
@@ -113,7 +115,7 @@ st_init ()
    socket_fd = accept(server_socket_fd, (struct sockaddr *)&addr, &socket_len);
   }
   FILE *socket_r = fdopen (socket_fd, "r");
-  FILE *socket_w = fdopen (socket_fd, "w");
+  //FILE *socket_w = fdopen (socket_fd, "w");
   char cmd[4] = {NUL, NUL, NUL, NUL};
   fread (cmd, 3, 1, socket_r);
   char *args = NULL;
@@ -153,10 +155,11 @@ st_init ()
   allocated = new_array(2);
   max = new_array(2);
   client_ids = new_array(2);
+  clients_running = 0;
 
   free(args);
   fclose(socket_r);
-  fclose(socket_w);
+  //fclose(socket_w);
   close(socket_fd);
 
   // TODO : DEBUG
@@ -194,28 +197,26 @@ st_process_requests (server_thread * st, int socket_fd)
 {
   // TODO: Remplacer le contenu de cette fonction
   FILE *socket_r = fdopen (socket_fd, "r");
-  FILE *socket_w = fdopen (socket_fd, "w");
+  //FILE *socket_w = fdopen (socket_fd, "w");
 
-  while (true)
-  {
     char cmd[4] = {NUL, NUL, NUL, NUL};
     if (!fread (cmd, 3, 1, socket_r))
-      break;
+      return;
     char *args = NULL; size_t args_len = 0;
     ssize_t cnt = getline (&args, &args_len, socket_r);
     if (!args || cnt < 1 || args[cnt - 1] != '\n')
     {
       printf ("Thread %d received incomplete cmd=%s!\n", st->id, cmd);
-      break;
+      return;
     }
 
     printf ("Thread %d received the command: %s%s\n", st->id, cmd, args);
 
-    int ct_id = atoi(strtok(args, " "));
     // Case 1 : ini
     if(strcmp(cmd, "INI") == 0) {
       // Initialise ressources pour client
-      // TODO: test validity : max <= provisionned resources?? (can that be done?)
+      // TODO: check for unique id
+      int ct_id = atoi(strtok(args, " "));
       int *max_client = malloc(nb_resources * sizeof(int));
       int *alloc_client = malloc(nb_resources * sizeof(int));
       for(int i=0; i < nb_resources ; i++) {
@@ -229,6 +230,7 @@ st_process_requests (server_thread * st, int socket_fd)
       push_back(allocated, alloc_client);
       push_back(client_ids, ct_id);
       nb_registered_clients++;
+	  clients_running++;
       pthread_mutex_unlock(&critical_mutex);
 
       printf("Thread %d initialized client %d\n", st->id, ct_id);
@@ -236,7 +238,9 @@ st_process_requests (server_thread * st, int socket_fd)
     } else if(strcmp(cmd, "REQ") == 0) {
 
       // Case 2 : req
+      
       // Parse request args
+      int ct_id = atoi(strtok(args, " "));
       int req[nb_resources];
       for(int i=0; i < nb_resources; i++) {
           req[i] = atoi(strtok(NULL, " "));
@@ -275,7 +279,6 @@ st_process_requests (server_thread * st, int socket_fd)
         send (socket_fd, acknowledged, strlen(acknowledged), 0);
 
         // Update journal
-        //TODO : keep track of waiting clients
         pthread_mutex_lock(&journal_mutex);
         count_accepted++;
         pthread_mutex_unlock(&journal_mutex);
@@ -286,23 +289,31 @@ st_process_requests (server_thread * st, int socket_fd)
         sprintf(wait_msg, "WAIT ");
         sprintf(wait_msg, "%s%d\n",wait_msg, wait_time);
         send (socket_fd, &wait_msg, strlen(wait_msg), 0);
-               
+        // Update journal
+        pthread_mutex_lock(&journal_mutex);
+        count_wait++;
+        pthread_mutex_unlock(&journal_mutex);
       }
+      // Update journal
+      pthread_mutex_lock(&journal_mutex);
+      request_processed++;
+      pthread_mutex_unlock(&journal_mutex);
     } else if(strcmp(cmd, "CLO") == 0) {
 
       // Case 3 : clo
-
+      int ct_id = atoi(strtok(args, " "));
       //Section critique
       pthread_mutex_lock(&critical_mutex);
 
       int idx = getClientIdx(ct_id);
       fflush(stdout);
-      fprintf(stdout, "Thread %d closed client %d at index %d/n", st->id, ct_id, idx);
+      fprintf(stdout, "Thread %d closed client %d at index %d\n", st->id, ct_id, idx);
 
       if(idx < 0) {
         char *err_msg = "ERR invalid process id\n";
         send (socket_fd, err_msg, strlen(err_msg), 0);
       } else {
+		 clients_running--;
         // Test if there are allocations left
         int *alloc_client = allocated->data[idx];
         int is_free = 1;
@@ -313,7 +324,7 @@ st_process_requests (server_thread * st, int socket_fd)
         }
 
         if(is_free == 1) {
-          // TODO : deallocate max and allocated
+          // TODO : remove id, deallocate max and allocated
           pthread_mutex_unlock(&critical_mutex);
           send (socket_fd, acknowledged, strlen(acknowledged), 0);
 
@@ -333,26 +344,34 @@ st_process_requests (server_thread * st, int socket_fd)
       // Case 4 : end
       // Section critique
       pthread_mutex_lock(&critical_mutex);
-      //TODO : test if there are clients running
-      //TODO : free structures max, allocated, client_ids
-      delete_array_callback(&max, free);
-      delete_array_callback(&allocated, free);
-      delete_array_callback(&client_ids, free);
-      free(available);
-      pthread_mutex_unlock(&critical_mutex);
+      fflush(stdout);
+      fprintf(stdout, "Reveived END, %d clients running\n", clients_running);
+      if(clients_running == 0) {
+	    //TODO : free structures max, allocated, client_ids
+        delete_array_callback(&max, free);
+        delete_array_callback(&allocated, free);
+        delete_array(&client_ids);
+        free(available);
+        pthread_mutex_unlock(&critical_mutex);
 
-      pthread_mutex_destroy(&critical_mutex);
-      pthread_mutex_destroy(&journal_mutex);
-      send (socket_fd, acknowledged, strlen(acknowledged), 0);
+        pthread_mutex_destroy(&critical_mutex);
+        pthread_mutex_destroy(&journal_mutex);
+        fprintf(stdout, "Accepting END\n");
+        send (socket_fd, acknowledged, strlen(acknowledged), 0);
+	    accepting_connections = 0;
+	  } else {
+		pthread_mutex_unlock(&critical_mutex);
+        char *err_msg = "ERR Clients still running\n";
+        send (socket_fd, err_msg, strlen(err_msg), 0); 
+	  }
     } else {
       char *err_msg = "ERR Unknown command\n";
       send (socket_fd, err_msg, strlen(err_msg), 0);
     }
     free (args);
-  }
 
   fclose (socket_r);
-  fclose (socket_w);
+  //fclose (socket_w);
   // TODO end
 }
 
@@ -405,19 +424,6 @@ int isSafe (int client_idx, int req[]) {
       }
     }
   }
-  // Compute need matrx
-  /*int need[nb_registered_clients][nb_resources];
-  for(int i=0; i < nb_registered_clients; i++) {
-    int *max_client = max->data[i];
-    int *alloc_client = allocated->data[i];
-    for(int j=0; j < nb_resources; j++) {
-      if(client_idx == j) {
-        need[i][j] = max_client[j] - (alloc_client[j] + req[j]);
-      } else {
-        need[i][j] = max_client[j] - alloc_client[j];
-      }
-    }
-  }*/
 
   // Test if new state is safe
   int nb_running = nb_registered_clients;
@@ -462,35 +468,6 @@ int isSafe (int client_idx, int req[]) {
     }
   }
   return 1;
-
-    // TODO : remove 
-    // 1. Let work and finish vectors of m and n length
-   // int work[nb_resources];
-   // for(int i=0; i < nb_resources; i++) {
-    //  work[i] = available[i];
-   // }
-   // int finish[nb_registered_clients];
-   // for(int j=0; j < nb_registered_clients; j++) {
-     // finish[j] = 0;
-   // }
-
-   // int safe = 0;
-    // 2. find i such that finish[i] = false & need[i][] <= work
-    // need = ???
-    // if !E, go to 4.
-   // for(int i=0; i < nb_registered_clients; i++) {
-     // if(finish[i] == 0) {
-
-    //  }
-   // }
-
-    // 3. if E, work = work + allocated[i][]
-    // finish[i] = true
-    // go to 2.
-
-    // 4. if finish=true for all i
-    // safe = 1;
- // return safe;
 }
 
 
