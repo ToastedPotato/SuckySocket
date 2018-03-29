@@ -78,7 +78,6 @@ int ct_connect (){
   return socket_fd;
 }
 
-<<<<<<< HEAD
 // Vous devez modifier cette fonction pour faire l'envoie des requêtes
 // Les ressources demandées par la requête doivent être choisies aléatoirement
 // (sans dépasser le maximum pour le client). Elles peuvent être positives
