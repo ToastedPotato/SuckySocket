@@ -240,7 +240,7 @@ ct_code (void *param)
             get_response(socket_fd, init_response, sizeof(init_response));
         }while((strcmp(init_response, "ACK") < 0));*/
         close(socket_fd);      
-        server_ready = 1;
+        server_status = 1;
         
     }else{fprintf(stdout, "Server ready for requests\n");}
     pthread_mutex_unlock(&server_setup);     
@@ -397,24 +397,27 @@ ct_code (void *param)
 	fflush(stdout);
     fprintf(stdout, "Sending CLO, response : %s\n", response); 
 	close(socket_fd);
-	
+    
     pthread_mutex_lock(&dispatch_mutex);
+    if(strstr(response, "ACK") != NULL) {
+      count_dispatched++;
+    }	
     num_running--;
+    fprintf(stdout, "num_running : %d\n", num_running);
 	// End server
     if(num_running == 0){
         socket_fd = ct_connect();
-			
-		char *end_msg = "END\n";
-        send(socket_fd, &end_msg, strlen(end_msg), 0);
+        fprintf(stdout, "Sending end\n");			
+	char end_msg[] = "END\n";
+        send(socket_fd, end_msg, strlen(end_msg), 0);
 		do{
         //sleep(1);
-                
 			get_response(socket_fd, response, 
             sizeof(response));
                 
-		}while(strlen(response) <= 0);
-		fflush(stdout);
-		fprintf(stdout, "Sending END, response : %s\n", response);
+        }while(strlen(response) <= 0);
+	fflush(stdout);
+	fprintf(stdout, "Sending END, response : %s\n", response);
         /*do{
             
             send(socket_fd, &end_msg, strlen(end_msg), MSG_NOSIGNAL);
@@ -485,7 +488,7 @@ st_print_results (FILE * fd, bool verbose)
   {
     fprintf (fd, "\n---- Résultat du client ----\n");
     fprintf (fd, "Requêtes acceptées: %d\n", count_accepted);
-    fprintf (fd, "Requêtes : %d\n", count_on_wait);
+    fprintf (fd, "Requêtes en attente: %d\n", count_on_wait);
     fprintf (fd, "Requêtes invalides: %d\n", count_invalid);
     fprintf (fd, "Clients : %d\n", count_dispatched);
     fprintf (fd, "Requêtes envoyées: %d\n", request_sent);

@@ -212,11 +212,11 @@ st_process_requests (server_thread * st, int socket_fd)
 
     printf ("Thread %d received the command: %s%s\n", st->id, cmd, args);
 
-    int ct_id = atoi(strtok(args, " "));
     // Case 1 : ini
     if(strcmp(cmd, "INI") == 0) {
       // Initialise ressources pour client
       // TODO: check for unique id
+      int ct_id = atoi(strtok(args, " "));
       int *max_client = malloc(nb_resources * sizeof(int));
       int *alloc_client = malloc(nb_resources * sizeof(int));
       for(int i=0; i < nb_resources ; i++) {
@@ -238,7 +238,9 @@ st_process_requests (server_thread * st, int socket_fd)
     } else if(strcmp(cmd, "REQ") == 0) {
 
       // Case 2 : req
+      
       // Parse request args
+      int ct_id = atoi(strtok(args, " "));
       int req[nb_resources];
       for(int i=0; i < nb_resources; i++) {
           req[i] = atoi(strtok(NULL, " "));
@@ -277,7 +279,6 @@ st_process_requests (server_thread * st, int socket_fd)
         send (socket_fd, acknowledged, strlen(acknowledged), 0);
 
         // Update journal
-        //TODO : keep track of waiting clients
         pthread_mutex_lock(&journal_mutex);
         count_accepted++;
         pthread_mutex_unlock(&journal_mutex);
@@ -288,12 +289,19 @@ st_process_requests (server_thread * st, int socket_fd)
         sprintf(wait_msg, "WAIT ");
         sprintf(wait_msg, "%s%d\n",wait_msg, wait_time);
         send (socket_fd, &wait_msg, strlen(wait_msg), 0);
-               
+        // Update journal
+        pthread_mutex_lock(&journal_mutex);
+        count_wait++;
+        pthread_mutex_unlock(&journal_mutex);
       }
+      // Update journal
+      pthread_mutex_lock(&journal_mutex);
+      request_processed++;
+      pthread_mutex_unlock(&journal_mutex);
     } else if(strcmp(cmd, "CLO") == 0) {
 
       // Case 3 : clo
-
+      int ct_id = atoi(strtok(args, " "));
       //Section critique
       pthread_mutex_lock(&critical_mutex);
 
@@ -336,16 +344,19 @@ st_process_requests (server_thread * st, int socket_fd)
       // Case 4 : end
       // Section critique
       pthread_mutex_lock(&critical_mutex);
+      fflush(stdout);
+      fprintf(stdout, "Reveived END, %d clients running\n", clients_running);
       if(clients_running == 0) {
 	    //TODO : free structures max, allocated, client_ids
         delete_array_callback(&max, free);
         delete_array_callback(&allocated, free);
-        delete_array_callback(&client_ids, free);
+        delete_array(&client_ids);
         free(available);
         pthread_mutex_unlock(&critical_mutex);
 
         pthread_mutex_destroy(&critical_mutex);
         pthread_mutex_destroy(&journal_mutex);
+        fprintf(stdout, "Accepting END\n");
         send (socket_fd, acknowledged, strlen(acknowledged), 0);
 	    accepting_connections = 0;
 	  } else {
