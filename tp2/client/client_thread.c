@@ -399,12 +399,12 @@ ct_wait_server ()
     }
     
     //destruction des mutex à la fin de l'exécution car ils ne sont plus requis
-    pthread_mutex_destory(&ack_mutex);
-    pthread_mutex_destory(&req_wait_mutex);
-    pthread_mutex_destory(&err_mutex);
-    pthread_mutex_destory(&dispatch_mutex);
-    pthread_mutex_destory(&sent_mutex);
-    pthread_mutex_destory(&server_setup);
+    pthread_mutex_destroy(&ack_mutex);
+    pthread_mutex_destroy(&req_wait_mutex);
+    pthread_mutex_destroy(&err_mutex);
+    pthread_mutex_destroy(&dispatch_mutex);
+    pthread_mutex_destroy(&sent_mutex);
+    pthread_mutex_destroy(&server_setup);
     
     // Connect
     struct sockaddr_in serv_addr;
@@ -416,6 +416,8 @@ ct_wait_server ()
     
     //envoi du message de fin d'exécution du serveur
     char *end_msg = "END\n";
+    
+    char response[50];
     
     do{
         
