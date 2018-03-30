@@ -244,7 +244,8 @@ st_process_requests (server_thread * st, int socket_fd)
       pthread_mutex_lock(&critical_mutex);
 
       int idx = getClientIdx(ct_id);
-      printf("Thread %d received request from client %d at index %d\n", st->id, ct_id, idx);
+      printf("Thread %d received request from client %d at index %d\n", 
+        st->id, ct_id, idx);
       if(idx < 0 || isValid(idx, req) == 0) { // Test request validity
         pthread_mutex_unlock(&critical_mutex);
         printf("Request invalid\n");
@@ -301,7 +302,8 @@ st_process_requests (server_thread * st, int socket_fd)
 
       int idx = getClientIdx(ct_id);
       fflush(stdout);
-      fprintf(stdout, "Thread %d closed client %d at index %d\n", st->id, ct_id, idx);
+      fprintf(stdout, "Thread %d closed client %d at index %d\n", 
+        st->id, ct_id, idx);
 
       if(idx < 0) {
         char *err_msg = "ERR invalid process id\n";
@@ -397,7 +399,8 @@ int isValid (int client_idx, int req[]) {
     return 0;
   }
   for(int i=0; i < nb_resources; i++) {
-    if(req[i] > max_client[i] - alloc_client[i] || req[i] + alloc_client[i] < 0){
+    if(req[i] > max_client[i] - alloc_client[i] || 
+        req[i] + alloc_client[i] < 0){
       return 0;
     }
   }
@@ -540,7 +543,8 @@ st_open_socket (int port_number)
     perror ("ERROR opening socket");
     exit(1);
   }
-  if (setsockopt(server_socket_fd, SOL_SOCKET, SO_REUSEADDR, &(int){ 1 }, sizeof(int)) < 0) {
+  if (setsockopt(server_socket_fd, SOL_SOCKET, SO_REUSEADDR, &(int){ 1 }, 
+    sizeof(int)) < 0) {
     perror("setsockopt()");
     exit(1);
   }

@@ -108,7 +108,7 @@ void get_response(int socket_fd, char *buffer, int bufsize){
 // qu'il a jusqu'alors accumulées.
 void
 send_request (int client_id, int request_id, int resend, int req_values[], 
-    int max[], int held[], int socket_fd, const struct sockaddr *addr)
+    int max[], int held[], int socket_fd)
 {
     //j'ai dû modifier la signature de la méthode d'envoi de requête pour 
     //satisfiare les contraintes ci-haut
@@ -178,12 +178,6 @@ ct_code (void *param)
     int socket_fd = -1;
     client_thread *ct = (client_thread *) param;
 
-    // TODO : to remove
-    struct sockaddr_in serv_addr;
-    memset (&serv_addr, 0, sizeof (serv_addr));
-    serv_addr.sin_family = AF_INET;
-    serv_addr.sin_addr.s_addr = INADDR_ANY;
-    serv_addr.sin_port = htons (port_number);
     // TP2 TODO
            
     // Initialize server
@@ -287,11 +281,10 @@ ct_code (void *param)
         int resend = 0;
 
         while (request_outcome != 1) {
-            // Connection au server
 			
             // Envoi de la requête                
             send_request (ct->id, request_id, resend, requested, max_resources, 
-                held, socket_fd, (struct sockaddr *) &serv_addr);
+                held, socket_fd);
             
             // Après le renvoi d'une requête suite à un wait
             resend = 0;
