@@ -83,7 +83,6 @@ pthread_mutex_t journal_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 // Helper functions
 void print_resources();
-void print_array(int array[]);
 int getClientIdx(int client_id);
 int isValid (int client_idx, int req[]);
 int isSafe (int client_idx, int req[]);
@@ -115,7 +114,6 @@ st_init ()
    socket_fd = accept(server_socket_fd, (struct sockaddr *)&addr, &socket_len);
   }
   FILE *socket_r = fdopen (socket_fd, "r");
-  //FILE *socket_w = fdopen (socket_fd, "w");
   char cmd[4] = {NUL, NUL, NUL, NUL};
   fread (cmd, 3, 1, socket_r);
   char *args = NULL;
@@ -159,15 +157,13 @@ st_init ()
 
   free(args);
   fclose(socket_r);
-  //fclose(socket_w);
   close(socket_fd);
 
-  // TODO : DEBUG
   print_resources();
   // END TODO
 }
 
-//TODO : for debug  purposes
+//Print available resources - for debug  purposes
 void print_resources() {
   fflush(stdout);
   char strA[100];
@@ -179,25 +175,12 @@ void print_resources() {
   fprintf(stdout, "%s\n", strA);
 
 }
-//TODO : for debug  purposes
-void print_array(int array[]) {
-  fflush(stdout);
-  char strA[100];
-  sprintf(strA,"Array:");
-  for(int j=0; j < nb_resources; j++) {
-    sprintf(strA, "%s %d", strA, array[j]);
-  }
-  sprintf(strA, "%s\n", strA);
-  fprintf(stdout, "%s\n", strA);
-
-}
 
 void
 st_process_requests (server_thread * st, int socket_fd)
 {
   // TODO: Remplacer le contenu de cette fonction
   FILE *socket_r = fdopen (socket_fd, "r");
-  //FILE *socket_w = fdopen (socket_fd, "w");
   while(true) {
     char cmd[4] = {NUL, NUL, NUL, NUL};
     if (!fread (cmd, 3, 1, socket_r))
@@ -384,7 +367,6 @@ st_process_requests (server_thread * st, int socket_fd)
     free (args);
   }
   fclose (socket_r);
-  //fclose (socket_w);
   // TODO end
 }
 
@@ -406,9 +388,6 @@ int isValid (int client_idx, int req[]) {
   }
   for(int i=0; i < nb_resources; i++) {
     if(req[i] > max_client[i] - alloc_client[i] || req[i] + alloc_client[i] < 0){
-    //  fflush(stdout);
-   //   fprintf(stdout, "Req %d > max %d - alloc %d\n", req[i], max_client[i], alloc_client[i]);
-    //  fprintf(stdout, "req %d + alloc %d < 0\n", req[i], alloc_client[i]);
       return 0;
     }
   }
@@ -452,30 +431,6 @@ int isSafe (int client_idx, int req[]) {
 	}
   }
   
-  // Compute temp alloc matrix
-  /*int alloc[nb_registered_clients][nb_resources];
-  for(int i=0; i < nb_registered_clients; i++) {
-    int *alloc_client = allocated->data[i];
-    for(int j=0; j < nb_resources; j++) {
-      if(client_idx == i) {
-        alloc[i][j] = alloc_client[j] + req[j];
-      } else {
-        alloc[i][j] = alloc_client[j];
-      }
-    }
-  }
-
-  // Test if new state is safe
-  int nb_running = nb_registered_clients;
-  int running[nb_registered_clients];
-  for(int i=0; i < nb_registered_clients; i++) {
-    running[i] = 1;
-  }*/
-  
- // fprintf(stdout, "Checking safe mode, nb running = %d\n", nb_running);
-  //fprintf(stdout, "Initial new state");
-  //print_array(newstate);
-
   int at_least_one_allocated;
   while(nb_running > 0) {
     at_least_one_allocated = 0;
@@ -489,21 +444,16 @@ int isSafe (int client_idx, int req[]) {
           }
         }
         if(can_finish == 1) {
-        // fflush(stdout);
-        // fprintf(stdout, "Client %d finished, new new state\n", i);
          at_least_one_allocated = 1;
           running[i] = 0;
           nb_running--;
           for(int k=0; k < nb_resources; k++) {
             newstate[k] = newstate[k] + alloc[i][k];
           }
-         // print_array(newstate); 
         }
       }
     }
     if(at_least_one_allocated == 0) {
-//     fflush(stdout);
-//     fprintf(stdout, "Unsafe state with %d still running, none allocated\n", nb_running);
      return 0;
     }
   }
