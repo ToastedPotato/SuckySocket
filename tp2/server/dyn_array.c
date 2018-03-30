@@ -60,7 +60,9 @@ void delete_array_callback(struct array_t **array, void (*callback)(void*)) {
       if (ptr->data) {
 
         for(int i = 0; i < ptr->size; i++) {
-          callback(ptr->data[i]);
+		  if(ptr->data[i] != NULL) {
+            callback(ptr->data[i]);
+		  }
         }
         free(ptr->data);
       }

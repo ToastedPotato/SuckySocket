@@ -73,6 +73,7 @@ int *available;
 // Client ids by index
 struct array_t *client_ids;
 
+// Number of clients currently running
 int clients_running;
 
 // Mutex pour l'acces aux sections critiques et donnes partagees
@@ -208,12 +209,15 @@ st_process_requests (server_thread * st, int socket_fd)
         max_client[i] = atoi(strtok(NULL, " "));
         alloc_client[i] = 0;
       }
+	  int *id_client = malloc(sizeof(int));
+	  id_client = ct_id;
 
       // Section critique
       pthread_mutex_lock(&critical_mutex);
       push_back(max, max_client);
       push_back(allocated, alloc_client);
-      push_back(client_ids, ct_id);
+      push_back(client_ids, id_client);
+	  
       nb_registered_clients++;
 	  clients_running++;
       pthread_mutex_unlock(&critical_mutex);
@@ -314,7 +318,9 @@ st_process_requests (server_thread * st, int socket_fd)
 		  int *max_cli = max->data[idx];
 		  free(max_cli);
 		  max->data[idx] = NULL;
-		  client_ids->data[idx] = -1;
+		  int *id_cli = client_ids->data[idx];
+		  free(id_cli);
+		  client_ids->data[idx] = NULL;
           // TODO : remove id, deallocate max and allocated
           pthread_mutex_unlock(&critical_mutex);
           send (socket_fd, acknowledged, strlen(acknowledged), 0);
@@ -339,11 +345,12 @@ st_process_requests (server_thread * st, int socket_fd)
       fprintf(stdout, "Reveived END, %d clients running\n", clients_running);
       if(clients_running == 0) {
 	    //TODO : free structures max, allocated, client_ids
-        //delete_array_callback(&max, free);
-        //delete_array_callback(&allocated, free);
-		delete_array(&max);
-		delete_array(&allocated);
-        delete_array(&client_ids);
+        delete_array_callback(&max, free);
+        delete_array_callback(&allocated, free);
+		delete_array(&client_ids, free);
+		//delete_array(&max);
+		//delete_array(&allocated);
+        //delete_array(&client_ids);
         free(available);
         pthread_mutex_unlock(&critical_mutex);
 
@@ -371,8 +378,9 @@ st_process_requests (server_thread * st, int socket_fd)
 }
 
 int getClientIdx(int client_id) {
-  for(int i=0; i < nb_registered_clients; i++) {
-    if(client_ids->data[i] == client_id) {
+  for(int i=0; i < client_ids->size; i++) {
+	int *id_pt = client_ids->data[i];
+    if(id_pt != NULL && id_pt[0] == client_id) {
       return i;
     }
   }
