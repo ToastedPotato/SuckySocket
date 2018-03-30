@@ -324,6 +324,12 @@ st_process_requests (server_thread * st, int socket_fd)
         }
 
         if(is_free == 1) {
+		  free(alloc_client); 
+		  allocated->data[idx] = NULL;
+		  int *max_cli = max->data[idx];
+		  free(max_cli);
+		  max->data[idx] = NULL;
+		  client_ids->data[idx] = -1;
           // TODO : remove id, deallocate max and allocated
           pthread_mutex_unlock(&critical_mutex);
           send (socket_fd, acknowledged, strlen(acknowledged), 0);
@@ -348,8 +354,10 @@ st_process_requests (server_thread * st, int socket_fd)
       fprintf(stdout, "Reveived END, %d clients running\n", clients_running);
       if(clients_running == 0) {
 	    //TODO : free structures max, allocated, client_ids
-        delete_array_callback(&max, free);
-        delete_array_callback(&allocated, free);
+        //delete_array_callback(&max, free);
+        //delete_array_callback(&allocated, free);
+		delete_array(&max);
+		delete_array(&allocated);
         delete_array(&client_ids);
         free(available);
         pthread_mutex_unlock(&critical_mutex);
@@ -389,7 +397,9 @@ int getClientIdx(int client_id) {
 int isValid (int client_idx, int req[]) {
   int *max_client = max->data[client_idx];
   int *alloc_client = allocated->data[client_idx];
-
+  if(max_client == NULL || alloc_client == NULL) {
+    return 0;
+  }
   for(int i=0; i < nb_resources; i++) {
     if(req[i] > max_client[i] - alloc_client[i] || req[i] + alloc_client[i] < 0){
     //  fflush(stdout);
@@ -415,6 +425,31 @@ int isSafe (int client_idx, int req[]) {
 
   // Compute temp alloc matrix
   int alloc[nb_registered_clients][nb_resources];
+  int running[nb_registered_clients];
+  int nb_running = 0;
+  for(int i=0; i < nb_registered_clients; i++) {
+    int *alloc_client = allocated->data[i];
+	// Check if client is still running
+	if(alloc_client == NULL) {
+		running[i] = 0;
+		for(int k=0; k < nb_resources; k++) {
+			alloc[i][k] = 0;
+		}
+	} else { 
+	  running[i] = 1;
+	  nb_running++;
+      for(int j=0; j < nb_resources; j++) {
+        if(client_idx == i) {
+          alloc[i][j] = alloc_client[j] + req[j];
+        } else {
+          alloc[i][j] = alloc_client[j];
+        }
+	  }
+	}
+  }
+  
+  // Compute temp alloc matrix
+  /*int alloc[nb_registered_clients][nb_resources];
   for(int i=0; i < nb_registered_clients; i++) {
     int *alloc_client = allocated->data[i];
     for(int j=0; j < nb_resources; j++) {
@@ -431,7 +466,7 @@ int isSafe (int client_idx, int req[]) {
   int running[nb_registered_clients];
   for(int i=0; i < nb_registered_clients; i++) {
     running[i] = 1;
-  }
+  }*/
   
  // fprintf(stdout, "Checking safe mode, nb running = %d\n", nb_running);
   //fprintf(stdout, "Initial new state");
