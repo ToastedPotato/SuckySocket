@@ -201,33 +201,38 @@ st_process_requests (server_thread * st, int socket_fd)
     // Case 1 : ini
     if(strcmp(cmd, "INI") == 0) {
       // Initialise ressources pour client
-      // TODO: check for unique id
       int ct_id = atoi(strtok(args, " "));
-      int *max_client = malloc(nb_resources * sizeof(int));
-      int *alloc_client = malloc(nb_resources * sizeof(int));
-      for(int i=0; i < nb_resources ; i++) {
+	  
+	  // Section critique
+      pthread_mutex_lock(&critical_mutex);
+	  // Check for unique id
+	  if(getClientIdx(ct_id) == -1) {
+		int *max_client = malloc(nb_resources * sizeof(int));
+        int *alloc_client = malloc(nb_resources * sizeof(int));
+        for(int i=0; i < nb_resources ; i++) {
         max_client[i] = atoi(strtok(NULL, " "));
         alloc_client[i] = 0;
-      }
-	  int *id_client = malloc(sizeof(int));
-	  id_client[0] = ct_id;
+        }
+	    int *id_client = malloc(sizeof(int));
+	    id_client[0] = ct_id;
 
-      // Section critique
-      pthread_mutex_lock(&critical_mutex);
-      push_back(max, max_client);
-      push_back(allocated, alloc_client);
-      push_back(client_ids, id_client);
+        push_back(max, max_client);
+        push_back(allocated, alloc_client);
+        push_back(client_ids, id_client);
+        nb_registered_clients++;
+	    clients_running++;
+        pthread_mutex_unlock(&critical_mutex);
 	  
-      nb_registered_clients++;
-	  clients_running++;
-      pthread_mutex_unlock(&critical_mutex);
-
-      printf("Thread %d initialized client %d\n", st->id, ct_id);
-      send (socket_fd, acknowledged, strlen(acknowledged), 0);
+	    printf("Thread %d initialized client %d\n", st->id, ct_id);
+        send (socket_fd, acknowledged, strlen(acknowledged), 0);
+	  } else {
+		pthread_mutex_unlock(&critical_mutex);
+        char *err_msg =  "ERR id already in use\n";
+       	send (socket_fd, err_msg, strlen(err_msg), 0);
+	  }
     } else if(strcmp(cmd, "REQ") == 0) {
 
       // Case 2 : req
-      
       // Parse request args
       int ct_id = atoi(strtok(args, " "));
       int req[nb_resources];
@@ -273,7 +278,7 @@ st_process_requests (server_thread * st, int socket_fd)
         pthread_mutex_unlock(&journal_mutex);
       } else {
         pthread_mutex_unlock(&critical_mutex);
-	printf("Request put on wait\n");
+	    printf("Request put on wait\n");
         char wait_msg[9];
         sprintf(wait_msg, "WAIT ");
         sprintf(wait_msg, "%s%d\n",wait_msg, wait_time);
@@ -313,6 +318,7 @@ st_process_requests (server_thread * st, int socket_fd)
         }
 
         if(is_free == 1) {
+		  // Free client structures
 		  free(alloc_client); 
 		  allocated->data[idx] = NULL;
 		  int *max_cli = max->data[idx];
@@ -321,7 +327,6 @@ st_process_requests (server_thread * st, int socket_fd)
 		  int *id_cli = client_ids->data[idx];
 		  free(id_cli);
 		  client_ids->data[idx] = NULL;
-          // TODO : remove id, deallocate max and allocated
           pthread_mutex_unlock(&critical_mutex);
           send (socket_fd, acknowledged, strlen(acknowledged), 0);
 
@@ -344,13 +349,10 @@ st_process_requests (server_thread * st, int socket_fd)
       fflush(stdout);
       fprintf(stdout, "Reveived END, %d clients running\n", clients_running);
       if(clients_running == 0) {
-	    //TODO : free structures max, allocated, client_ids
+	    //Free shared structures
         delete_array_callback(&max, free);
         delete_array_callback(&allocated, free);
-	delete_array_callback(&client_ids, free);
-		//delete_array(&max);
-		//delete_array(&allocated);
-        //delete_array(&client_ids);
+	    delete_array_callback(&client_ids, free);
         free(available);
         pthread_mutex_unlock(&critical_mutex);
 
