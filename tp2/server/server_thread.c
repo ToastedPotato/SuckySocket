@@ -198,7 +198,7 @@ st_process_requests (server_thread * st, int socket_fd)
   // TODO: Remplacer le contenu de cette fonction
   FILE *socket_r = fdopen (socket_fd, "r");
   //FILE *socket_w = fdopen (socket_fd, "w");
-
+  while(true) {
     char cmd[4] = {NUL, NUL, NUL, NUL};
     if (!fread (cmd, 3, 1, socket_r))
       return;
@@ -359,6 +359,7 @@ st_process_requests (server_thread * st, int socket_fd)
         fprintf(stdout, "Accepting END\n");
         send (socket_fd, acknowledged, strlen(acknowledged), 0);
 	    accepting_connections = 0;
+        break;
 	  } else {
 		pthread_mutex_unlock(&critical_mutex);
         char *err_msg = "ERR Clients still running\n";
@@ -369,7 +370,7 @@ st_process_requests (server_thread * st, int socket_fd)
       send (socket_fd, err_msg, strlen(err_msg), 0);
     }
     free (args);
-
+  }
   fclose (socket_r);
   //fclose (socket_w);
   // TODO end

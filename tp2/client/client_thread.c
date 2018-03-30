@@ -282,7 +282,7 @@ ct_code (void *param)
                 
     }while(strlen(response) <= 0);
     fprintf(stdout, "Response : %s\n", response);
-	close(socket_fd);
+//	close(socket_fd);
         
     //Ressources allouées au client
     int held[num_resources];
@@ -311,7 +311,7 @@ ct_code (void *param)
 
         while (request_outcome != 1) {
             // Connection au server
-			socket_fd = ct_connect();
+//			socket_fd = ct_connect();
 			
             // Envoi de la requête                
             send_request (ct->id, request_id, resend, requested, max_resources, 
@@ -361,7 +361,7 @@ ct_code (void *param)
                 count_invalid++;
                 pthread_mutex_unlock(&err_mutex);
             }
-			close(socket_fd);
+//			close(socket_fd);
         }
 
         
@@ -377,7 +377,7 @@ ct_code (void *param)
 
     // TODO: Send CLO to server
 	// Connection au server
-	socket_fd = ct_connect();
+//	socket_fd = ct_connect();
 			
     char clo[10];
     sprintf(clo, "CLO %d\n", ct->id);
