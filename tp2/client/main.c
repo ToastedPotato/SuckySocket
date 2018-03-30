@@ -27,7 +27,7 @@ main (int argc, char *argv[])
     for (unsigned int i = 0; i < num_clients; i++) {
         ct_create_and_start (&(client_threads[i]));
     }
-
+        
     ct_wait_server ();
 
     // Affiche le journal.
@@ -35,10 +35,19 @@ main (int argc, char *argv[])
     FILE *fp = fopen("client.log", "w");
     if (fp == NULL) {
         fprintf(stderr, "Could not print log");
+    
+    //free manquants dans le main original
+    free(provisioned_resources);
+    free(client_threads);
+    
     return EXIT_FAILURE;
     }
     st_print_results (fp, false);
     fclose(fp);
 
+    //free manquants dans le main original
+    free(provisioned_resources);
+    free(client_threads);
+    
     return EXIT_SUCCESS;
 }

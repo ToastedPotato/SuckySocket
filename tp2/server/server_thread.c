@@ -207,6 +207,8 @@ st_process_requests (server_thread * st, int socket_fd)
     if (!args || cnt < 1 || args[cnt - 1] != '\n')
     {
       printf ("Thread %d received incomplete cmd=%s!\n", st->id, cmd);
+      fclose(socket_r);
+      free(args);
       return;
     }
 
@@ -367,6 +369,8 @@ st_process_requests (server_thread * st, int socket_fd)
         fprintf(stdout, "Accepting END\n");
         send (socket_fd, acknowledged, strlen(acknowledged), 0);
 	    accepting_connections = 0;
+        
+        free(args);
         break;
 	  } else {
 		pthread_mutex_unlock(&critical_mutex);

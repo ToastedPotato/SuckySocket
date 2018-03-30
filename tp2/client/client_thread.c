@@ -88,25 +88,6 @@ int ct_connect (){
 // ou négatives.
 // Assurez-vous que la dernière requête d'un client libère toute les ressources
 // qu'il a jusqu'alors accumulées.
-void reConnect (int socket_fd){
-    close(socket_fd);
-    fflush(stdout);
-    fprintf(stdout, "Trying to reconnect\n");
-    socket_fd = socket (AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
-    if (socket_fd < 0) {
-        perror ("ERROR opening socket\n");
-        exit(1);
-    }   
-    
-    struct sockaddr_in serv_addr;
-    memset (&serv_addr, 0, sizeof (serv_addr));
-    serv_addr.sin_family = AF_INET;
-    serv_addr.sin_addr.s_addr = INADDR_ANY;
-    serv_addr.sin_port = htons (port_number);
-    
-    connect(socket_fd, (struct sockaddr *) &serv_addr, 
-        sizeof (serv_addr));
-}
 
 void get_response(int socket_fd, char *buffer, int bufsize){
 
@@ -218,7 +199,6 @@ ct_code (void *param)
 		
 		char init_response[50]; 
 		do{
-        //sleep(1);
                 
 			get_response(socket_fd, init_response, 
             sizeof(init_response));
@@ -237,7 +217,6 @@ ct_code (void *param)
         send(socket_fd, &pro, strlen(pro), 0);
 		
 		do{
-        //sleep(1);
                 
 			get_response(socket_fd, init_response, 
             sizeof(init_response));
@@ -275,14 +254,12 @@ ct_code (void *param)
 	
     char response[50];
 	do{
-        //sleep(1);
                 
         get_response(socket_fd, response, 
             sizeof(response));
                 
     }while(strlen(response) <= 0);
     fprintf(stdout, "Response : %s\n", response);
-//	close(socket_fd);
         
     //Ressources allouées au client
     int held[num_resources];
@@ -311,7 +288,6 @@ ct_code (void *param)
 
         while (request_outcome != 1) {
             // Connection au server
-//			socket_fd = ct_connect();
 			
             // Envoi de la requête                
             send_request (ct->id, request_id, resend, requested, max_resources, 
@@ -320,10 +296,8 @@ ct_code (void *param)
             // Après le renvoi d'une requête suite à un wait
             resend = 0;
                         
-            //pour l'instant, j'assume que les réponses du serveur < 50 char
             char server_response[50];
             do{
-                //sleep(1);
                 
                 get_response(socket_fd, server_response, 
                     sizeof(server_response));
@@ -361,7 +335,6 @@ ct_code (void *param)
                 count_invalid++;
                 pthread_mutex_unlock(&err_mutex);
             }
-//			close(socket_fd);
         }
 
         
@@ -377,14 +350,11 @@ ct_code (void *param)
 
     // TODO: Send CLO to server
 	// Connection au server
-//	socket_fd = ct_connect();
 			
     char clo[10];
     sprintf(clo, "CLO %d\n", ct->id);
 	send(socket_fd, &clo, strlen(clo), 0);
-    //send(socket_fd, &clo, strlen(clo), MSG_NOSIGNAL);
 	do{
-        //sleep(1);
                 
         get_response(socket_fd, response, 
             sizeof(response));
@@ -392,10 +362,8 @@ ct_code (void *param)
     }while(strlen(response) <= 0);
     fprintf(stdout, "Response : %s\n", response);
 	
-    //recv(socket_fd, response, 49, MSG_WAITALL);
 	fflush(stdout);
     fprintf(stdout, "Sending CLO, response : %s\n", response); 
-//	close(socket_fd);
     
     pthread_mutex_lock(&dispatch_mutex);
     if(strstr(response, "ACK") != NULL) {
@@ -406,11 +374,9 @@ ct_code (void *param)
     fprintf(stdout, "num_running : %d\n", num_running);
 	// End server
     if(num_running == 0){
-  //      socket_fd = ct_connect();
         fprintf(stdout, "Sending end\n");			
         send(socket_fd, end_msg, strlen(end_msg), 0);
 		do{
-        //sleep(1);
 			get_response(socket_fd, response, 
             sizeof(response));
                 
@@ -438,7 +404,6 @@ ct_wait_server ()
 {
 
     // TP2 TODO: IMPORTANT code non valide.
-
     
     // Wait until server status is "ended"
     while(server_status != -1) {

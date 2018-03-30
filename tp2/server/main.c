@@ -44,10 +44,13 @@ main (int argc, char *argv[argc + 1])
   if (fp == NULL)
   {
     fprintf(stderr, "Could not print log");
+    
+    free(st);
     return EXIT_FAILURE;
   }
   st_print_results (fp, false);
   fclose(fp);
 
+  free(st);
   return EXIT_SUCCESS;
 }
