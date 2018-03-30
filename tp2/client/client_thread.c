@@ -76,8 +76,8 @@ int ct_connect (){
     if (connect(socket_fd, (struct sockaddr *) &serv_addr, 
     sizeof (serv_addr))  < 0) {
     // wrong way to check for errors with nonblocking sockets...
-    	fprintf (stdout, "%s", strerror(errno));
-    	exit(1);
+    	//fprintf (stdout, "%s", strerror(errno));
+    	//exit(1);
     }
   return socket_fd;
 }
