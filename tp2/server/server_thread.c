@@ -210,7 +210,7 @@ st_process_requests (server_thread * st, int socket_fd)
         alloc_client[i] = 0;
       }
 	  int *id_client = malloc(sizeof(int));
-	  id_client = ct_id;
+	  id_client[0] = ct_id;
 
       // Section critique
       pthread_mutex_lock(&critical_mutex);
@@ -347,7 +347,7 @@ st_process_requests (server_thread * st, int socket_fd)
 	    //TODO : free structures max, allocated, client_ids
         delete_array_callback(&max, free);
         delete_array_callback(&allocated, free);
-		delete_array(&client_ids, free);
+	delete_array_callback(&client_ids, free);
 		//delete_array(&max);
 		//delete_array(&allocated);
         //delete_array(&client_ids);
