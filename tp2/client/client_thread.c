@@ -395,7 +395,7 @@ ct_code (void *param)
     //recv(socket_fd, response, 49, MSG_WAITALL);
 	fflush(stdout);
     fprintf(stdout, "Sending CLO, response : %s\n", response); 
-	close(socket_fd);
+//	close(socket_fd);
     
     pthread_mutex_lock(&dispatch_mutex);
     if(strstr(response, "ACK") != NULL) {
@@ -406,7 +406,7 @@ ct_code (void *param)
     fprintf(stdout, "num_running : %d\n", num_running);
 	// End server
     if(num_running == 0){
-        socket_fd = ct_connect();
+  //      socket_fd = ct_connect();
         fprintf(stdout, "Sending end\n");			
         send(socket_fd, end_msg, strlen(end_msg), 0);
 		do{
@@ -418,11 +418,11 @@ ct_code (void *param)
 	fflush(stdout);
 	fprintf(stdout, "Sending END, response : %s\n", response);
         
-        close(socket_fd);
+    
 		server_status = -1;
     }
     pthread_mutex_unlock(&dispatch_mutex);
-    
+    close(socket_fd);
     return NULL;
 }
 
