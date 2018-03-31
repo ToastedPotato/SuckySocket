@@ -10,23 +10,55 @@
 \begin{document}
 
 \maketitle
-\section*{Introduction}
+\section*{ Introduction }
 \setlength{\parindent}{20pt}
 Pour ce travail pratique, nous avons dû simuler la communication TCP/IP entre un serveur et des clients dans le but de gérer l'allocation de 
-ressources (fictives) aux clients par le serveur. Pour réaliser cela, nous avons, en se basant sur le code fourni, écrit des programmes client et 
-serveur s'échangeant de l'information sous la forme de courts messages par le biais de sockets. Le rapport qui suit décrira les problèmes 
-rencontrés et les solutions implémentées pour les contourner en examinant le problème de famine inhérent à certaines implémentations possibles du 
-programme puis en allant plus en détail dans l'implémentation finale de notre client et serveur.
+ressources (fictives) aux clients par le serveur tout en évitant l'interblocage. Pour réaliser cela, nous avons, en se basant sur le code fourni, 
+écrit des programmes client et serveur s'échangeant de l'information sous la forme de courts messages par le biais de sockets. Le rapport qui 
+suit décrira les problèmes rencontrés et les solutions implémentées pour les contourner en examinant le problème de famine inhérent à certaines 
+implémentations possibles du programme puis en allant plus en détail dans l'implémentation finale de notre client et serveur.
 \\
-\section*{Problème de famine}
+\section*{ Problème de famine }
 \setlength{\parindent}{20pt}
-Un problème particulièrement épineux devant être géré par tout algorithme d'ordonnancement digne de ce nom. Cette situation survient lorsque, pour 
-une raison quelconque, un processus est en quelque sorte "négligé" par le système responsable de l'ordonnancement; le programme en question passe 
-un temps significatif sans recevoir les ressources dont il a besoin pour son exécution. Lors des premières itérations de notre système, le 
+Un problème particulièrement épineux devant être géré par tout algorithme d'ordonnancement digne de ce nom. Cette situation survient lorsque, 
+pour une raison quelconque, un processus est en quelque sorte "négligé" par le système responsable de l'ordonnancement; le programme en question 
+passe un temps significatif sans recevoir les ressources dont il a besoin pour son exécution. Lors des premières itérations de notre système, le 
 serveur gardait ouverte sa connection au client tant que celui-ci envoyait des requêtes, contribuant ainsi à l'occurence fréquente de cette 
 situation dès que le nombre de threads clients surpassait le nombre de threads serveurs disponibles. En effet, le premier thread client se 
 connectant à un thread serveur avait le loisir de monopoliser le temps de celui-ci tant qu'il avait des requêtes à lui envoyer, laissant les 
 threads clients trop lents à se connecter dans un état de famine. 
- 
-
+\\ 
+\section*{ Implémentation du client }
+\setlength{\parindent}{20pt}
+Selon la donnée, le programme client doit exécuter, par l'envoi de courts messages, les tâches suivantes: initialiser le serveur, informer le 
+serveur des usages de ressources requis pour terminer ses tâches, avertir le serveur que lesdites tâches sont terminées puis terminer l'exécution 
+du serveur une fois tous les clients déconnectés. La base de l'implémentation de ces fonctions est assez simple; le client construit ses messages 
+en générant des \emph{strings} composées de mnémoniques de 3 lettres suivies de chiffres et garde en mémoire sur la pile des tableaux de 
+\emph{int} gardant la trace de son usage des ressources allouées par le serveur. 
+\\
+Par contre, l'exécution devient beaucoup plus difficile lorsque la communication par TCP/IP entre en jeu. L'usage des sockets en C étant déjà 
+complexe à la base -en effet, une majeure partie du temps fut passée à lire les pages du manuel Linux associées à chacune des fonctions de 
+communication TCP-, simplement avoir une connection entre le client fût une tâche hardue. En effet, les premières itérations du programme étaient 
+victimes de l'occurence fréquente d'erreurs \emph{SIGPIPE} signifiant un bris de la communication client-serveur. Comme première solution à ce 
+problème nous avons essayé la fermeture puis la réouverture et reconnection du socket client à chaque opération \emph{send} et \emph{recv} mais, 
+malgré le fait que cela réglait les erreurs SIGPIPE, la quantité massive de \emph{file descriptors} générés devenait rapidement un fardeau 
+immense sur les processeurs plus faibles, causant le gel de l'exécution du programme. Finalement, nous avons décidé de restreindre l'usage 
+d'opérations de reconnection à deux endroits du programme client: le début de la section initialisant le serveur et le début de la section 
+envoyant au serveur le message d'initilisation du client. Ceci était nécessaire étant donné la fermeture de la connection du côté serveur après 
+son initialisation.
+\\
+Étant donné la nature du programme demandée par la donnée du travail, il a fallu gérer le multithreading, les conditions de course générées par 
+celui-ci en particulier. En effet, pour éviter la corruption des données utilisées par les threads du programme client, nous avons opté pour 
+l'usage de \epmh{mutex} durant l'envoi du message de configuration au serveur et la mise à jour des statistiques du client à raison d'un mutex 
+pour la section configurant le serveur -car celui-ci ne doit être configuré qu'une seule fois- et d'un \epmh{mutex} par statistique pour éviter 
+que la mise à jour d'une statistique par un thread client empêche un autre client d'ajuster une statistique différente. L'usage de sémaphores 
+aurait été un autre choix viable, mais, dans ce cas-ci, il ne ferait qu'ajouter plus de complexité à l'implémentation sans être plus efficace que 
+les \epmh{mutex}.
+\\
+\section*{ Implémentation du serveur }
+\setlength{\parindent}{20pt}
+\\
+\section*{ Conclusion }
+\setlength{\parindent}{20pt}
+\\
 \end{document}
