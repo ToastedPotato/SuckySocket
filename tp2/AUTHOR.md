@@ -1,11 +1,11 @@
 Auteur 1
 ========
-Nom:
-Matricule:
-Courriel:
+Nom: Chritophe Apollon-Roy
+Matricule: 920403
+Courriel: christophe.apollon-roy@umontreal.ca
 
 Auteur 2
 ========
-Nom:
-Matricule:
+Nom: Amélie Lacombe Robillard
+Matricule: 20016735
 Courriel:
