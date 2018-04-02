@@ -17,7 +17,7 @@ SRV_O = main.o dyn_array.o server_thread.o
 
 default: all
 
-all: $(BUILD_DIR)/tp2_client $(BUILD_DIR)/tp2_server 
+all: $(BUILD_DIR)/tp2_client $(BUILD_DIR)/tp2_server rapport.pdf
 
 $(BUILD_DIR)/tp2_client: $(patsubst %.o,$(BUILD_DIR)/client/%.o, $(CLT_O))
 	$(CC) $(LDFLAGS) -o $@ $(patsubst %.o,$(BUILD_DIR)/client/%.o, $(CLT_O))
